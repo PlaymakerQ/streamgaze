@@ -122,7 +122,10 @@ if __name__ == "__main__":
     parser.add_argument("--model_name", type=str, default="Dummy",
                         help="Name of the model")
     parser.add_argument("--benchmark_name", type=str,
-                        default="StreamingBenchGaze_Past_StreamGaze",
+                        default="StreamingBenchRemind_StreamGaze",
+                        choices=["StreamingBenchGaze_Past_StreamGaze",
+                                 "StreamingBenchGaze_StreamGaze",
+                                 "StreamingBenchRemind_StreamGaze"],
                         help="Name of the benchmark")
     parser.add_argument("--output_file", type=str, default=None,
                         help="Path to the output file")
@@ -138,17 +141,17 @@ if __name__ == "__main__":
     #     print(f"🎯 Using gaze visualization videos from: {args.video_root}")
 
     data_root = Path(Const.data_root)
-    task_name = "past_scene_recall.json"
+    task_name = "proactive_object_appearance_alert.json"
     args.data_file = data_root / "qa" / task_name
 
     save_path = MT.set_save_path(model_name=args.model_name, data_name="gaze", task_name="main")
 
     args.output_file = Path(save_path) / "output.json"
 
-    args.video_root = data_root / "videos" / "original_video"
+    args.video_root = data_root / "videos" / "all_original_videos"
 
     args.use_gaze_instruction = True
 
-    args.gaze_viz_video_root = data_root / "videos" / "gaze_viz_video"
+    args.gaze_viz_video_root = data_root / "videos" / "all_viz_videos"
 
     main(args)
