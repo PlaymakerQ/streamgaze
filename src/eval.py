@@ -2,7 +2,9 @@ from utils.data_execution import load_data
 
 from model.modelclass import Model
 from benchmark.Benchmark import Benchmark
-
+from constants import Const
+from pathlib import Path
+from tools import MyTool as MT
 import argparse
 
 def main(args):
@@ -110,18 +112,40 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--data_file", type=str, required=True, help="Path to the data file")
-    parser.add_argument("--video_root", type=str, required=True, help="Path to the video dictionary")
-    parser.add_argument("--model_name", type=str, required=True, help="Name of the model")
-    parser.add_argument("--benchmark_name", type=str, required=True, help="Name of the benchmark")
-    parser.add_argument("--output_file", type=str, required=True, help="Path to the output file")
-    parser.add_argument("--use_gaze_instruction", action="store_true", help="Add gaze instruction to prompts (green dot = gaze point, red circle = FOV)")
-    parser.add_argument("--gaze_viz_video_root", type=str, default=None, help="Path to gaze visualization videos (used when use_gaze_instruction is True)")
+    parser.add_argument("--data_file", type=str, default=None,
+                        help="Path to the data file")
+    parser.add_argument("--video_root", type=str, default=None,
+                        help="Path to the video dictionary")
+    parser.add_argument("--model_name", type=str, default="Dummy",
+                        help="Name of the model")
+    parser.add_argument("--benchmark_name", type=str,
+                        default="StreamingBenchGaze_Past_StreamGaze",
+                        help="Name of the benchmark")
+    parser.add_argument("--output_file", type=str, default=None,
+                        help="Path to the output file")
+    parser.add_argument("--use_gaze_instruction", action="store_true",
+                        help="Add gaze instruction to prompts (green dot = gaze point, red circle = FOV)")
+    parser.add_argument("--gaze_viz_video_root", type=str, default=None,
+                        help="Path to gaze visualization videos (used when use_gaze_instruction is True)")
     args = parser.parse_args()
     
     # If use_gaze_instruction is True and gaze_viz_video_root is provided, use it
-    if args.use_gaze_instruction and args.gaze_viz_video_root:
-        args.video_root = args.gaze_viz_video_root
-        print(f"🎯 Using gaze visualization videos from: {args.video_root}")
-    
+    # if args.use_gaze_instruction and args.gaze_viz_video_root:
+    #     args.video_root = args.gaze_viz_video_root
+    #     print(f"🎯 Using gaze visualization videos from: {args.video_root}")
+
+    data_root = Path(Const.data_root)
+    task_name = "past_scene_recall.json"
+    args.data_file = data_root / "qa" / task_name
+
+    save_path = MT.set_save_path(model_name=args.model_name, data_name="gaze", task_name="main")
+
+    args.output_file = Path(save_path) / "output.json"
+
+    args.video_root = data_root / "videos" / "original_video"
+
+    args.use_gaze_instruction = True
+
+    args.gaze_viz_video_root = data_root / "videos" / "gaze_viz_video"
+
     main(args)
