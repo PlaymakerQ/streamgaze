@@ -24,4 +24,13 @@ def get_model_response(model, file, inp, start_time, end_time, question_time=Non
     inp: Input prompt
     salience_map_path: Optional path to salience map image
     """
-    return model.Run(file, inp, start_time, end_time, question_time, omni, proactive, salience_map_path)
+    return model.Run(
+        file, 
+        inp, 
+        start_time, 
+        end_time, 
+        question_time, 
+        omni, 
+        proactive, 
+        salience_map_path
+        )
