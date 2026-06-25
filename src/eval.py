@@ -34,7 +34,10 @@ def main(args):
     model = Model()
     
     # Dynamic model loading based on model_name
-    if args.model_name == "ViSpeak":
+    if args.model_name == "Dummy":
+        from model.Dummy import Dummy
+        model = Dummy()
+    elif args.model_name == "ViSpeak":
         from model.ViSpeak import ViSpeak
         model = ViSpeak()
     elif args.model_name == "InternVL":
