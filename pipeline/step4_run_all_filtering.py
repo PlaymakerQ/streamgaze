@@ -14,11 +14,11 @@ Usage:
     python run_all_filtering.py --input_dir <qa_json_dir> --output_dir <output_dir>
 """
 
-import os
-import json
 import argparse
-from pathlib import Path
+import json
+import os
 from datetime import datetime
+from pathlib import Path
 
 # Import all filtering functions
 from filtering import (
@@ -31,7 +31,6 @@ from filtering import (
     filter_past_scene_reconstruction,
     filter_past_transition_pattern,
 )
-
 
 # Task type to filter function mapping
 TASK_FILTERS = {

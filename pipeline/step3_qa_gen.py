@@ -31,27 +31,16 @@ Usage:
 
 """
 
-import os
-# Get pipeline directory dynamically  
-PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Get pipeline directory dynamically
+from constants import Const
+PIPELINE_DIR = Const.raw_gaze_dir
 
-import pdb
 import pandas as pd
 import nncore
-import numpy as np
-import cv2, json, random, pdb
-from pprint import pprint
-import matplotlib.pyplot as plt
-from openai import AzureOpenAI
-import os, imageio
+import json
+import os
 from datetime import datetime
-from PIL import Image
-from tqdm import tqdm 
-from openai import OpenAI
-from datetime import timedelta
-import base64
-import re
-# ours 
+# ours
 from qa_generation.past import (
     generate_next_after_group_qa,
     generate_never_gazed_qa,

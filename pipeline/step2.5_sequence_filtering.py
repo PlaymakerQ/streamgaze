@@ -36,8 +36,8 @@ import argparse
 import unicodedata
 import re
 
-# Get pipeline directory dynamically
-PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+from constants import Const
+PIPELINE_DIR = Const.raw_gaze_dir
 
 # =============================================================================
 # Metadata Merging Functions

@@ -15,7 +15,8 @@ from pathlib import Path
 from preprocess import process_single_video, process_single_video_ego4d, process_single_video_egoexo, process_single_video_holoassist
 
 # Get pipeline directory dynamically
-PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+from constants import Const
+PIPELINE_DIR = Const.raw_gaze_dir
 
 #   python step1_extract_fixation.py --dataset egtea
 #   python step1_extract_fixation.py --dataset ego4d --fps 30
@@ -88,7 +89,13 @@ def process_egtea(skip_viz=False, viz_only=False):
             print(f"❌ Gaze file not found for {video_name}, skipping...")
             continue
         
-        process_single_video(video_path, gaze_path, output_dir, action_data, skip_viz=skip_viz, viz_only=viz_only)
+        process_single_video(
+            video_path,
+            gaze_path,
+            output_dir,
+            action_data,
+            skip_viz=skip_viz, viz_only=viz_only
+        )
     
     print(f"\n{'='*60}")
     print("All videos processed!")
@@ -154,7 +161,15 @@ def process_ego4d(fps=30, skip_viz=False, viz_only=False):
             print(f"❌ Gaze file not found for {video_name}, skipping...")
             continue
         
-        process_single_video_ego4d(video_path, gaze_path, output_dir, action_data, fps=fps, skip_viz=skip_viz, viz_only=viz_only)
+        process_single_video_ego4d(
+            video_path,
+            gaze_path,
+            output_dir,
+            action_data,
+            fps=fps,
+            skip_viz=skip_viz,
+            viz_only=viz_only
+        )
     
     print(f"\n{'='*60}")
     print("All videos processed!")
@@ -564,7 +579,9 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
 def main():
     """Main processing function with dataset selection"""
     parser = argparse.ArgumentParser(description='Process gaze metadata for different datasets')
-    parser.add_argument('--dataset', type=str, choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'], required=True,
+    parser.add_argument('--dataset', type=str,
+                        default="egtea",
+                        choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'],
                         help='Dataset to process: egtea, ego4d, egoexo, egoexo-lab, kitchen, or holoassist')
     parser.add_argument('--fps', type=float, default=30,
                         help='FPS for videos (default: 30, HoloAssist: 24.46)')

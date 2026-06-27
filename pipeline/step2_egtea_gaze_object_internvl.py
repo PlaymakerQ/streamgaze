@@ -1,25 +1,17 @@
-
-from io import BytesIO
-from typing import Tuple, List, Dict
-import time
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-# from moviepy.editor import VideoFileClip
-from datetime import datetime
-import pandas as pd
-from PIL import Image
-from tqdm import tqdm 
-from collections import Counter
 import argparse
+import os
+import time
+from collections import Counter
+
+# from moviepy.editor import VideoFileClip
+import pandas as pd
+from tqdm import tqdm
 
 # Import functions from preprocess module (original Gemini functions)
 from preprocess import (
     save_frequency_analysis,
     count_total_fixations
 )
-
 # Import NEW InternVL functions
 from preprocess.internvl_processor import (
     extract_objects_and_scene_from_video_clip_internvl_v2_sequential,  # NEW: Sequential version
@@ -27,7 +19,8 @@ from preprocess.internvl_processor import (
 )
 
 # Get pipeline directory dynamically
-PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+from constants import Const
+PIPELINE_DIR = Const.raw_gaze_dir
 
 # Usage:
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python step2_egtea_gaze_object_internvl.py --dataset egtea
