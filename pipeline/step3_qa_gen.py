@@ -402,7 +402,7 @@ if __name__ == "__main__":
     # Use human-verified metadata if flag is set
     if args.use_human_verified:
         human_verified_path = os.path.join(os.path.dirname(PIPELINE_DIR), 'dataset', 'metadata', f'{args.dataset}.csv')
-        print(f"📋 Using human-verified metadata: {human_verified_path}")
+        print(f"[INFO] Using human-verified metadata: {human_verified_path}")
         metadata_file = human_verified_path
     else:
         # Use auto-generated metadata from Step 2.5
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     
     print(f"\n{'='*60}")
     print(f"Configuration for {args.dataset}:")
-    print(f"  Metadata type: {'🧑 Human-verified' if args.use_human_verified else '🤖 Auto-generated (Step 2.5)'}")
+    print(f"  Metadata type: {'Human-verified' if args.use_human_verified else 'Auto-generated (Step 2.5)'}")
     print(f"  Metadata file: {metadata_file}")
     print(f"  Video base dir: {video_base_dir}")
     print(f"  Save path: {save_path}")
@@ -457,7 +457,7 @@ if __name__ == "__main__":
     if args.start_pct > 0:
         start_idx = int(len(tasks) * args.start_pct / 100)
         tasks = tasks[start_idx:]
-        print(f"🎯 Starting from {args.start_pct}% position (index {start_idx}/{len(tasks) + start_idx})")
+        print(f"[INFO] Starting from {args.start_pct}% position (index {start_idx}/{len(tasks) + start_idx})")
     
     # Create save directory if it doesn't exist
     os.makedirs(save_path, exist_ok=True)
@@ -478,16 +478,16 @@ if __name__ == "__main__":
         all_action_labels.columns = all_action_labels.columns.str.strip()
         all_action_labels['start_time_sec'] = all_action_labels['Starting Time (ms)'] / 1000.0
         all_action_labels['end_time_sec'] = all_action_labels['Ending Time (ms)'] / 1000.0
-        print(f"✓ Loaded {len(all_action_labels)} action labels")
+        print(f"[OK] Loaded {len(all_action_labels)} action labels")
     elif args.dataset == 'egoexo' and action_file and os.path.exists(action_file):
         print(f"EgoExo annotation directory: {action_file}")
         egoexo_annotation_dir = action_file
-        print(f"✓ Will load per-video JSON annotations from {egoexo_annotation_dir}")
+        print(f"[OK] Will load per-video JSON annotations from {egoexo_annotation_dir}")
     elif args.dataset == 'holoassist' and action_file and os.path.exists(action_file):
         print(f"Loading HoloAssist annotations from: {action_file}")
         with open(action_file, 'r') as f:
             holoassist_annotations = json.load(f)
-        print(f"✓ Loaded HoloAssist annotations")
+        print(f"[OK] Loaded HoloAssist annotations")
     else:
         print(f"No action labels file for {args.dataset}")
     
@@ -507,7 +507,7 @@ if __name__ == "__main__":
     checkpoint_file = f"{save_path}/{args.dataset}_checkpoint.json"
     processed_videos = set()
     if os.path.exists(checkpoint_file):
-        print(f"📂 Loading checkpoint from {checkpoint_file}")
+        print(f"[INFO] Loading checkpoint from {checkpoint_file}")
         checkpoint = nncore.load(checkpoint_file)
         processed_videos = set(checkpoint.get('processed_videos', []))
         all_present_ident_tasks_easy = checkpoint.get('present_ident_easy', [])
@@ -520,8 +520,8 @@ if __name__ == "__main__":
         all_future_action_tasks = checkpoint.get('future_action', [])
         all_future_remind_easy_tasks = checkpoint.get('future_remind_easy', [])
         all_future_remind_hard_tasks = checkpoint.get('future_remind_hard', [])
-        print(f"✓ Loaded checkpoint with {len(processed_videos)} processed videos")
-        print(f"✓ Resuming from video {len(processed_videos) + 1}/{len(tasks)}")
+        print(f"[OK] Loaded checkpoint with {len(processed_videos)} processed videos")
+        print(f"[OK] Resuming from video {len(processed_videos) + 1}/{len(tasks)}")
     
     print(f"Found {len(tasks)} videos to process")
     print(f"Results will be saved to: {save_path}")
@@ -537,7 +537,7 @@ if __name__ == "__main__":
         
         # Skip if already processed
         if video_name in processed_videos:
-            print(f"⏭️  SKIPPING: Already processed in checkpoint")
+            print(f"[SKIP]  SKIPPING: Already processed in checkpoint")
             continue
         
         # Construct video path and categories based on dataset
@@ -563,16 +563,16 @@ if __name__ == "__main__":
         
         # Check if video path exists
         if video_path is None or not os.path.exists(video_path):
-            print(f"❌ Video file not found: {video_path}")
-            print(f"⏭️  Skipping video {video_name}...")
+            print(f"[ERROR] Video file not found: {video_path}")
+            print(f"[SKIP]  Skipping video {video_name}...")
             continue
 
         # Filter fixation data for this video from unified metadata
         fixation_dataset = all_fixation_data[all_fixation_data[video_col] == video_name].copy()
         
         if len(fixation_dataset) == 0:
-            print(f"❌ No fixation data found for video: {video_name}")
-            print(f"⏭️  Skipping video {video_name}...")
+            print(f"[ERROR] No fixation data found for video: {video_name}")
+            print(f"[SKIP]  Skipping video {video_name}...")
             continue
         
         print(f"Fixation dataset shape: {fixation_dataset.shape}")
@@ -582,11 +582,11 @@ if __name__ == "__main__":
         required_cols = ['episode_start_time', 'episode_end_time', 'duration', 'representative_object']
         missing_cols = [col for col in required_cols if col not in fixation_dataset.columns]
         if missing_cols:
-            print(f"❌ Missing required columns: {missing_cols}")
-            print(f"⏭️  Skipping video {video_name}...")
+            print(f"[ERROR] Missing required columns: {missing_cols}")
+            print(f"[SKIP]  Skipping video {video_name}...")
             continue
         
-        print(f"✓ Using unified metadata with EGTEA column format")
+        print(f"[OK] Using unified metadata with EGTEA column format")
         
         # Filter action labels for this video
         video_actions = pd.DataFrame()
@@ -600,7 +600,7 @@ if __name__ == "__main__":
                 try:
                     with open(annotation_path, 'r') as f:
                         action_data = json.load(f)
-                    print(f"   ✅ Loaded {len(action_data)} annotations from {video_name}.json")
+                    print(f"   [OK] Loaded {len(action_data)} annotations from {video_name}.json")
                     
                     # Convert to DataFrame format
                     action_list = []
@@ -617,10 +617,10 @@ if __name__ == "__main__":
                     video_actions = pd.DataFrame(action_list)
                     print(f"Found {len(video_actions)} actions for {video_name}")
                 except Exception as e:
-                    print(f"   ⚠️ Failed to load annotation for {video_name}: {e}")
+                    print(f"   [WARN] Failed to load annotation for {video_name}: {e}")
                     video_actions = pd.DataFrame()
             else:
-                print(f"   ⚠️ No annotation file found: {annotation_path}")
+                print(f"   [WARN] No annotation file found: {annotation_path}")
         elif args.dataset == 'holoassist' and holoassist_annotations is not None:
             # Filter for current video (same structure as step1_extract_fixation.py)
             video_action_data = None
@@ -629,7 +629,7 @@ if __name__ == "__main__":
                     video_action_data = video_anno.get('events', [])
                     # Filter for fine-grained actions only (same as step1)
                     video_action_data = [e for e in video_action_data if e.get('label') == 'Fine grained action']
-                    print(f"   ✅ Found {len(video_action_data)} fine-grained actions")
+                    print(f"   [OK] Found {len(video_action_data)} fine-grained actions")
                     break
             
             if video_action_data:
@@ -652,7 +652,7 @@ if __name__ == "__main__":
                 video_actions = pd.DataFrame(action_list)
                 print(f"Found {len(video_actions)} actions for {video_name}")
             else:
-                print(f"   ⚠️ No fine-grained action annotations found for {video_name}")
+                print(f"   [WARN] No fine-grained action annotations found for {video_name}")
                 video_actions = pd.DataFrame()
         else:
             print(f"No action labels available for {args.dataset}")
@@ -669,8 +669,8 @@ if __name__ == "__main__":
         if len(fixation_for_present_tasks) > 0:
             fixation_for_present_tasks = fixation_for_present_tasks.sort_values(by='episode_start_time')
         else:
-            print(f"⚠️ No valid fixation data after filtering for {video_name}")
-            print(f"⏭️ Skipping QA generation for this video...")
+            print(f"[WARN] No valid fixation data after filtering for {video_name}")
+            print(f"[SKIP] Skipping QA generation for this video...")
             continue
 
         # Create scanpath dictionary with 2D list structure
@@ -709,15 +709,15 @@ if __name__ == "__main__":
             print(f"\n  [Future Task Generation]")
             # future_action_tasks = []
             future_action_tasks = generate_future_action_qa(scanpath_obj_dict, video_path, video_categories=video_categories)
-            print(f"    → Generated {len(future_action_tasks)} action prediction tasks")
+            print(f"    -> Generated {len(future_action_tasks)} action prediction tasks")
             
             future_remind_easy_tasks, future_remind_hard_tasks = generate_object_remind_qa(
                 scanpath_obj_dict=scanpath_obj_dict,
                 video_path=video_path,
                 video_categories=video_categories
             )
-            print(f"    → Generated {len(future_remind_easy_tasks)} easy remind tasks")
-            print(f"    → Generated {len(future_remind_hard_tasks)} hard remind tasks")
+            print(f"    -> Generated {len(future_remind_easy_tasks)} easy remind tasks")
+            print(f"    -> Generated {len(future_remind_hard_tasks)} hard remind tasks")
         else:
             future_action_tasks = []
             future_remind_easy_tasks = []
@@ -752,7 +752,7 @@ if __name__ == "__main__":
         
         # Save checkpoint every CHECKPOINT_INTERVAL videos
         if len(processed_videos) % CHECKPOINT_INTERVAL == 0:
-            print(f"\n💾 Saving checkpoint ({len(processed_videos)} videos processed)...")
+            print(f"\n[INFO] Saving checkpoint ({len(processed_videos)} videos processed)...")
             checkpoint_data = {
                 'processed_videos': list(processed_videos),
                 'present_ident_easy': all_present_ident_tasks_easy,
@@ -768,10 +768,10 @@ if __name__ == "__main__":
                 'timestamp': datetime.now().isoformat()
             }
             nncore.dump(checkpoint_data, checkpoint_file, indent=2)
-            print(f"✓ Checkpoint saved to {checkpoint_file}")
+            print(f"[OK] Checkpoint saved to {checkpoint_file}")
             
             # Save intermediate JSON files as well
-            print(f"💾 Saving intermediate JSON files...")
+            print("[INFO] Saving intermediate JSON files...")
             if generate_present:
                 nncore.dump(all_present_ident_tasks_easy, f"{save_path}/{args.dataset}_present_ident_tasks.json", indent=2)
                 nncore.dump(all_present_ident_tasks_hard, f"{save_path}/{args.dataset}_present_ident_tasks_hard.json", indent=2)
@@ -785,12 +785,12 @@ if __name__ == "__main__":
                 nncore.dump(all_future_action_tasks, f"{save_path}/{args.dataset}_future_action_tasks.json", indent=2)
                 nncore.dump(all_future_remind_easy_tasks, f"{save_path}/{args.dataset}_future_remind_easy_tasks.json", indent=2)
                 nncore.dump(all_future_remind_hard_tasks, f"{save_path}/{args.dataset}_future_remind_hard_tasks.json", indent=2)
-            print(f"✓ Intermediate JSON files saved")
+            print(f"[OK] Intermediate JSON files saved")
             
             if generate_future:
-                print(f"  → Accumulated future action tasks: {len(all_future_action_tasks)}")
-                print(f"  → Accumulated future remind easy tasks: {len(all_future_remind_easy_tasks)}")
-                print(f"  → Accumulated future remind hard tasks: {len(all_future_remind_hard_tasks)}")
+                print(f"  -> Accumulated future action tasks: {len(all_future_action_tasks)}")
+                print(f"  -> Accumulated future remind easy tasks: {len(all_future_remind_easy_tasks)}")
+                print(f"  -> Accumulated future remind hard tasks: {len(all_future_remind_hard_tasks)}")
 
     # Save aggregated tasks after processing all videos
     print(f"\n{'='*60}")
@@ -827,14 +827,14 @@ if __name__ == "__main__":
     
     # Save Future tasks (conditional)
     if generate_future:
-        print(f"\n📝 Saving Future tasks:")
-        print(f"  → Action tasks: {len(all_future_action_tasks)} tasks → {save_path}/{args.dataset}_future_action_tasks.json")
+        print("\n[INFO] Saving Future tasks:")
+        print(f"  -> Action tasks: {len(all_future_action_tasks)} tasks -> {save_path}/{args.dataset}_future_action_tasks.json")
         nncore.dump(all_future_action_tasks, f"{save_path}/{args.dataset}_future_action_tasks.json", indent=2)
         
-        print(f"  → Remind easy tasks: {len(all_future_remind_easy_tasks)} tasks → {save_path}/{args.dataset}_future_remind_easy_tasks.json")
+        print(f"  -> Remind easy tasks: {len(all_future_remind_easy_tasks)} tasks -> {save_path}/{args.dataset}_future_remind_easy_tasks.json")
         nncore.dump(all_future_remind_easy_tasks, f"{save_path}/{args.dataset}_future_remind_easy_tasks.json", indent=2)
         
-        print(f"  → Remind hard tasks: {len(all_future_remind_hard_tasks)} tasks → {save_path}/{args.dataset}_future_remind_hard_tasks.json")
+        print(f"  -> Remind hard tasks: {len(all_future_remind_hard_tasks)} tasks -> {save_path}/{args.dataset}_future_remind_hard_tasks.json")
         nncore.dump(all_future_remind_hard_tasks, f"{save_path}/{args.dataset}_future_remind_hard_tasks.json", indent=2)
     
     # Save summary
@@ -867,10 +867,10 @@ if __name__ == "__main__":
     # Remove checkpoint file after successful completion
     if os.path.exists(checkpoint_file):
         os.remove(checkpoint_file)
-        print(f"✓ Checkpoint file removed: {checkpoint_file}")
+        print(f"[OK] Checkpoint file removed: {checkpoint_file}")
     
     print(f"\n{'='*60}")
-    print(f"🎉 All videos processed successfully!")
+    print("All videos processed successfully!")
     print(f"Results saved in: {save_path}")
     print(f"{'='*60}")
     print(f"\nSaved files:")

@@ -60,14 +60,14 @@ def merge_all_metadata(dataset, base_data_path):
     csv_files = sorted(glob.glob(pattern))
     
     if not csv_files:
-        print(f"⚠️  No metadata files found matching pattern: {pattern}")
+        print(f"[WARN]  No metadata files found matching pattern: {pattern}")
         print(f"   Looking for alternative file pattern...")
         # Try alternative pattern
         pattern = os.path.join(base_data_path, "*", "*_fixation_with_internvl_v2_scene.csv")
         csv_files = sorted(glob.glob(pattern))
     
     if not csv_files:
-        print(f"❌ No metadata files found to merge!")
+        print(f"[ERROR] No metadata files found to merge!")
         return
     
     print(f"Found {len(csv_files)} metadata files")
@@ -85,10 +85,10 @@ def merge_all_metadata(dataset, base_data_path):
                 df['source_file'] = csv_file
                 all_dfs.append(df)
         except Exception as e:
-            print(f"⚠️  Error reading {csv_file}: {e}")
+            print(f"[WARN]  Error reading {csv_file}: {e}")
     
     if not all_dfs:
-        print(f"❌ No valid dataframes to merge!")
+        print(f"[ERROR] No valid dataframes to merge!")
         return
     
     # Concatenate all dataframes
@@ -102,7 +102,7 @@ def merge_all_metadata(dataset, base_data_path):
     
     merged_df.to_csv(output_file, index=False)
     
-    print(f"✅ Merged metadata saved: {output_file}")
+    print(f"[OK] Merged metadata saved: {output_file}")
     print(f"   Total rows: {len(merged_df):,}")
     print(f"   Total videos: {merged_df['video_name'].nunique() if 'video_name' in merged_df.columns else 'N/A'}")
     print(f"   Columns: {list(merged_df.columns)}")
@@ -249,7 +249,7 @@ def filter_scene_consistency_by_hist(merged_df, video_path, hist_threshold=0.9,
                 'mean_score': 0.0,
                 'reason': 'black_scene'
             })
-            print(f"  ⚫ Episode {idx}: duration={duration:.2f}s -> black scene removed")
+            print(f"  [BLACK] Episode {idx}: duration={duration:.2f}s -> black scene removed")
             continue
         
         # Histogram-based consistency check
@@ -280,14 +280,14 @@ def filter_scene_consistency_by_hist(merged_df, video_path, hist_threshold=0.9,
                 'mean_score': mean_score,
                 'reason': 'scene_change'
             })
-            print(f"  ❌ Episode {idx}: duration={duration:.2f}s, "
+            print(f"  [ERROR] Episode {idx}: duration={duration:.2f}s, "
                   f"min_score={min_score:.3f}, mean_score={mean_score:.3f}")
     
     filtered_df = merged_df.loc[filtered_indices].reset_index(drop=True)
     stats_df = pd.DataFrame(stats)
     
-    print(f"\n✅ Kept: {len(filtered_df)}/{len(merged_df)} episodes")
-    print(f"❌ Filtered out: {len(merged_df) - len(filtered_df)} episodes")
+    print(f"\n[OK] Kept: {len(filtered_df)}/{len(merged_df)} episodes")
+    print(f"[ERROR] Filtered out: {len(merged_df) - len(filtered_df)} episodes")
     
     return filtered_df, stats_df
 
@@ -492,7 +492,7 @@ def extract_fixation_clips_to_gif(merged_df, video_name, video_path, output_dir,
         video_file = video_path
         print(f"Gaze visualization not found, using original video: {video_path}")
     else:
-        print(f"⚠️  Error: Neither gaze visualization nor original video found for {video_name}")
+        print(f"[WARN]  Error: Neither gaze visualization nor original video found for {video_name}")
         print(f"  - Gaze viz path: {gaze_viz_path}")
         print(f"  - Original path: {video_path}")
         print(f"Skipping GIF generation for {video_name}")
@@ -608,11 +608,11 @@ def extract_fixation_clips_to_gif(merged_df, video_name, video_path, output_dir,
         if frames:
             try:
                 imageio.mimsave(output_path, frames, fps=gif_fps, loop=0)
-                fixation_progress.write(f"✓ GIF saved: {output_filename} ({len(frames)} frames)")
+                fixation_progress.write(f"[OK] GIF saved: {output_filename} ({len(frames)} frames)")
             except Exception as e:
-                fixation_progress.write(f"✗ Error saving GIF {output_filename}: {e}")
+                fixation_progress.write(f"[ERROR] Error saving GIF {output_filename}: {e}")
         else:
-            fixation_progress.write(f"✗ No frames extracted for {obj_name}")
+            fixation_progress.write(f"[ERROR] No frames extracted for {obj_name}")
     
     cap.release()
     fixation_progress.write(f"\nAll episode GIFs saved to: {output_dir}")
@@ -671,7 +671,7 @@ def filter_consecutive_similar_episodes(merged_df, video_path, hist_thresh=0.9):
                 rep_obj_id = rep_obj.get('object_identity', 'N/A') if isinstance(rep_obj, dict) else 'N/A'
                 next_obj = next_ep.get('representative_object', {})
                 next_obj_id = next_obj.get('object_identity', 'N/A') if isinstance(next_obj, dict) else 'N/A'
-                print(f"  📍 Episode {i} ({rep_obj_id}) "
+                print(f"   Episode {i} ({rep_obj_id}) "
                       f"~~ Episode {j} ({next_obj_id}) "
                       f"-> similar, will keep only first")
                 j += 1
@@ -686,7 +686,7 @@ def filter_consecutive_similar_episodes(merged_df, video_path, hist_thresh=0.9):
         # keep_indices.append(longest_idx)
         
         if len(current_group) > 1:
-            print(f"  ✅ Kept episode {i}, removed {len(current_group)-1} similar episode(s)\n")
+            print(f"  [OK] Kept episode {i}, removed {len(current_group)-1} similar episode(s)\n")
         
         skip_until_idx = j - 1
         i = j
@@ -694,8 +694,8 @@ def filter_consecutive_similar_episodes(merged_df, video_path, hist_thresh=0.9):
     filtered_df = df.iloc[keep_indices].reset_index(drop=True)
     
     print(f"\n{'='*60}")
-    print(f"✅ Final: {len(filtered_df)}/{len(df)} episodes kept")
-    print(f"❌ Removed: {len(df) - len(filtered_df)} consecutive similar episodes")
+    print(f"[OK] Final: {len(filtered_df)}/{len(df)} episodes kept")
+    print(f"[ERROR] Removed: {len(df) - len(filtered_df)} consecutive similar episodes")
     print(f"{'='*60}")
     
     return filtered_df
@@ -772,7 +772,7 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
     # Skip if both CSV and GIF files already exist
     if csv_exists and gif_files_exist and not no_viz:
         gif_count = len([f for f in os.listdir(gif_output_dir) if f.endswith('.gif')])
-        print(f"✓ Output files already exist:")
+        print(f"[OK] Output files already exist:")
         print(f"  - CSV: {merged_output_path}")
         print(f"  - GIFs: {gif_output_dir} ({gif_count} files)")
         print(f"Skipping processing for {video_name}")
@@ -783,9 +783,9 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
             'data_dir': output_data_dir
         }
     elif csv_exists and not gif_files_exist:
-        print(f"⚠ CSV exists but GIFs missing, will generate GIFs for {video_name}")
+        print(f"[WARN] CSV exists but GIFs missing, will generate GIFs for {video_name}")
     elif not csv_exists and gif_files_exist:
-        print(f"⚠ GIFs exist but CSV missing, will regenerate CSV for {video_name}")
+        print(f"[WARN] GIFs exist but CSV missing, will regenerate CSV for {video_name}")
     else:
         print(f"Processing {video_name} (no existing files found)")
     
@@ -827,7 +827,7 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
                 max_duration=15      # Max 15 seconds per GIF
             )
         else:
-            print(f"✓ GIFs already exist, skipping generation for {video_name}")
+            print(f"[OK] GIFs already exist, skipping generation for {video_name}")
     else:
         print(f"Skipping GIF generation (--no-viz)")
     
@@ -850,86 +850,69 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
 # Configuration and Constants
 # =============================================================================
 
-def process_egtea(reverse=False, no_viz=False):
-    """Process EGTEA dataset"""
-    print("🚀 Starting EGTEA Sequence Filtering")
+def run_dataset_batch(title, base_data_path, video_base_path, output_base_path, dataset, reverse=False, no_viz=False, task_label='video', is_lab=False):
+    """Run the shared sequence filtering loop for a dataset."""
+    print(f"Starting {title}")
     print("=" * 60)
-    
-    # Base paths for EGTEA
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
+
+    tasks = sorted([
+        task for task in os.listdir(base_data_path)
+        if os.path.isdir(os.path.join(base_data_path, task))
+    ])
+
     if reverse:
         tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} video tasks to process")
+        print("[REVERSE] Processing videos in REVERSE order")
+
+    print(f"Found {len(tasks)} {task_label} tasks to process")
     print(f"Starting batch processing of {len(tasks)} videos...")
-    
+
     results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
+    successful = failed = skipped = 0
     progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
+
     for video_name in progress_bar:
         progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
+        output_check = f'{output_base_path}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
+
         if os.path.exists(output_check):
             skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
+            progress_bar.write(f"[SKIP] SKIPPING: {video_name} (already processed)")
+            progress_bar.set_postfix({'Success': successful, 'Skipped': skipped, 'Failed': failed})
             continue
-        
+
         try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='egtea')
+            video_data = process_single_video(video_name, base_data_path, video_base_path, dataset=dataset)
             if video_data is None:
                 progress_bar.write(f"Skipping {video_name} due to missing data")
                 failed += 1
                 continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz)
+
+            result = process_video_complete(video_data, output_base_path, no_viz=no_viz, is_lab=is_lab)
             results.append(result)
-            
+
             if result['num_episodes'] == 'skipped':
                 skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
+                progress_bar.write(f"[SKIP] Skipped {video_name} (already processed)")
             else:
                 successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
+                progress_bar.write(f"[OK] Successfully processed {video_name}")
+
         except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
+            progress_bar.write(f"[ERROR] Error processing {video_name}: {e}")
             failed += 1
             continue
-        
-        # Update progress bar with current stats
+
+        total_seen = successful + skipped + failed
         progress_bar.set_postfix({
             'Success': successful,
             'Skipped': skipped,
             'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
+            'Success Rate': f"{successful/total_seen*100:.1f}%" if total_seen > 0 else "0%",
+        })
+
     print(f"\n{'='*60}")
-    print(f"EGTEA BATCH PROCESSING COMPLETE")
+    print(f"{title.upper()} COMPLETE")
     print(f"{'='*60}")
     print(f"Total videos: {len(tasks)}")
     print(f"Successful: {successful}")
@@ -938,468 +921,89 @@ def process_egtea(reverse=False, no_viz=False):
     if len(tasks) > 0:
         print(f"Success rate: {successful/len(tasks)*100:.1f}%")
         print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
+
     return results
+
+
+def process_egtea(reverse=False, no_viz=False):
+    """Process EGTEA dataset."""
+    return run_dataset_batch(
+        title='EGTEA Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/',
+        dataset='egtea',
+        reverse=reverse,
+        no_viz=no_viz,
+    )
 
 
 def process_egoexo(reverse=False, no_viz=False):
-    """Process EgoExoLearn dataset"""
-    print("🚀 Starting EgoExoLearn Sequence Filtering")
-    print("=" * 60)
-    
-    # Base paths for EgoExoLearn
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
-    if reverse:
-        tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} video tasks to process")
-    print(f"Starting batch processing of {len(tasks)} videos...")
-    
-    results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
-    progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
-    for video_name in progress_bar:
-        progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
-            skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
-            continue
-        
-        try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='egoexo')
-            if video_data is None:
-                progress_bar.write(f"Skipping {video_name} due to missing data")
-                failed += 1
-                continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz)
-            results.append(result)
-            
-            if result['num_episodes'] == 'skipped':
-                skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
-            else:
-                successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
-        except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
-            failed += 1
-            continue
-        
-        # Update progress bar with current stats
-        progress_bar.set_postfix({
-            'Success': successful,
-            'Skipped': skipped,
-            'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"EGOEXOLEARN BATCH PROCESSING COMPLETE")
-    print(f"{'='*60}")
-    print(f"Total videos: {len(tasks)}")
-    print(f"Successful: {successful}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
-    if len(tasks) > 0:
-        print(f"Success rate: {successful/len(tasks)*100:.1f}%")
-        print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
-    return results
+    """Process EgoExoLearn dataset."""
+    return run_dataset_batch(
+        title='EgoExoLearn Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/',
+        dataset='egoexo',
+        reverse=reverse,
+        no_viz=no_viz,
+    )
 
 
 def process_egoexo_lab(reverse=False, no_viz=False):
-    """Process EgoExoLearn Lab dataset"""
-    print("🚀 Starting EgoExoLearn Lab Sequence Filtering")
-    print("=" * 60)
-    
-    # Base paths for EgoExoLearn Lab
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
-    if reverse:
-        tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} lab video tasks to process")
-    print(f"Starting batch processing of {len(tasks)} videos...")
-    
-    results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
-    progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
-    for video_name in progress_bar:
-        progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
-            skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
-            continue
-        
-        try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='egoexo')
-            if video_data is None:
-                progress_bar.write(f"Skipping {video_name} due to missing data")
-                failed += 1
-                continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz, is_lab=True)
-            results.append(result)
-            
-            if result['num_episodes'] == 'skipped':
-                skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
-            else:
-                successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
-        except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
-            failed += 1
-            continue
-        
-        # Update progress bar with current stats
-        progress_bar.set_postfix({
-            'Success': successful,
-            'Skipped': skipped,
-            'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"EGOEXO LAB BATCH PROCESSING COMPLETE")
-    print(f"{'='*60}")
-    print(f"Total videos: {len(tasks)}")
-    print(f"Successful: {successful}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
-    if len(tasks) > 0:
-        print(f"Success rate: {successful/len(tasks)*100:.1f}%")
-        print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
-    return results
+    """Process EgoExoLearn Lab dataset."""
+    return run_dataset_batch(
+        title='EgoExo Lab Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/',
+        dataset='egoexo',
+        reverse=reverse,
+        no_viz=no_viz,
+        task_label='lab video',
+        is_lab=True,
+    )
 
 
 def process_egoexo_kitchen(reverse=False, no_viz=False):
-    """Process EgoExoLearn Kitchen dataset"""
-    print("🚀 Starting EgoExoLearn Kitchen Sequence Filtering")
-    print("=" * 60)
-    
-    # Base paths for EgoExoLearn Kitchen
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
-    if reverse:
-        tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} kitchen video tasks to process")
-    print(f"Starting batch processing of {len(tasks)} videos...")
-    
-    results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
-    progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
-    for video_name in progress_bar:
-        progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
-            skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
-            continue
-        
-        try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='kitchen')
-            if video_data is None:
-                progress_bar.write(f"Skipping {video_name} due to missing data")
-                failed += 1
-                continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz, is_lab=False)
-            results.append(result)
-            
-            if result['num_episodes'] == 'skipped':
-                skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
-            else:
-                successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
-        except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
-            failed += 1
-            continue
-        
-        # Update progress bar with current stats
-        progress_bar.set_postfix({
-            'Success': successful,
-            'Skipped': skipped,
-            'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"EGOEXO KITCHEN BATCH PROCESSING COMPLETE")
-    print(f"{'='*60}")
-    print(f"Total videos: {len(tasks)}")
-    print(f"Successful: {successful}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
-    if len(tasks) > 0:
-        print(f"Success rate: {successful/len(tasks)*100:.1f}%")
-        print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
-    return results
+    """Process EgoExoLearn Kitchen dataset."""
+    return run_dataset_batch(
+        title='EgoExo Kitchen Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/',
+        dataset='kitchen',
+        reverse=reverse,
+        no_viz=no_viz,
+        task_label='kitchen video',
+    )
 
 
 def process_holoassist(reverse=False, no_viz=False):
-    """Process HoloAssist dataset"""
-    print("🚀 Starting HoloAssist Sequence Filtering")
-    print("=" * 60)
-    
-    # Base paths for HoloAssist
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
-    if reverse:
-        tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} video tasks to process")
-    print(f"Starting batch processing of {len(tasks)} videos...")
-    
-    results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
-    progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
-    for video_name in progress_bar:
-        progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
-            skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
-            continue
-        
-        try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='holoassist')
-            if video_data is None:
-                progress_bar.write(f"Skipping {video_name} due to missing data")
-                failed += 1
-                continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz)
-            results.append(result)
-            
-            if result['num_episodes'] == 'skipped':
-                skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
-            else:
-                successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
-        except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
-            failed += 1
-            continue
-        
-        # Update progress bar with current stats
-        progress_bar.set_postfix({
-            'Success': successful,
-            'Skipped': skipped,
-            'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"HOLOASSIST BATCH PROCESSING COMPLETE")
-    print(f"{'='*60}")
-    print(f"Total videos: {len(tasks)}")
-    print(f"Successful: {successful}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
-    if len(tasks) > 0:
-        print(f"Success rate: {successful/len(tasks)*100:.1f}%")
-        print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
-    return results
+    """Process HoloAssist dataset."""
+    return run_dataset_batch(
+        title='HoloAssist Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/',
+        dataset='holoassist',
+        reverse=reverse,
+        no_viz=no_viz,
+    )
 
 
 def process_ego4d(reverse=False, no_viz=False):
-    """Process Ego4D dataset"""
-    print("🚀 Starting Ego4D Sequence Filtering")
-    print("=" * 60)
-    
-    # Base paths for Ego4D
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/'
-    
-    # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH) 
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
-    
-    # Reverse order if requested
-    if reverse:
-        tasks = tasks[::-1]
-        print("⏪ Processing videos in REVERSE order")
-    
-    print(f"Found {len(tasks)} video tasks to process")
-    print(f"Starting batch processing of {len(tasks)} videos...")
-    
-    results = []
-    successful = 0
-    failed = 0
-    skipped = 0
-    
-    # Use tqdm for progress tracking
-    progress_bar = tqdm(tasks, desc="Processing videos", unit="video")
-    
-    for video_name in progress_bar:
-        progress_bar.set_description(f"Processing {video_name}")
-        
-        # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
-            skipped += 1
-            progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
-            progress_bar.set_postfix({
-                'Success': successful,
-                'Skipped': skipped,
-                'Failed': failed
-            })
-            continue
-        
-        try:
-            # Load video data
-            video_data = process_single_video(video_name, BASE_DATA_PATH, VIDEO_BASE_PATH, dataset='ego4d')
-            if video_data is None:
-                progress_bar.write(f"Skipping {video_name} due to missing data")
-                failed += 1
-                continue
-            
-            # Process video completely
-            result = process_video_complete(video_data, OUTPUT_BASE_PATH, no_viz=no_viz)
-            results.append(result)
-            
-            if result['num_episodes'] == 'skipped':
-                skipped += 1
-                progress_bar.write(f"⏭ Skipped {video_name} (already processed)")
-            else:
-                successful += 1
-                progress_bar.write(f"✓ Successfully processed {video_name}")
-            
-        except Exception as e:
-            progress_bar.write(f"✗ Error processing {video_name}: {e}")
-            failed += 1
-            continue
-        
-        # Update progress bar with current stats
-        progress_bar.set_postfix({
-            'Success': successful,
-            'Skipped': skipped,
-            'Failed': failed,
-            'Success Rate': f"{successful/(successful+skipped+failed)*100:.1f}%" if (successful+skipped+failed) > 0 else "0%"
-        }) 
-    
-    # Summary
-    print(f"\n{'='*60}")
-    print(f"EGO4D BATCH PROCESSING COMPLETE")
-    print(f"{'='*60}")
-    print(f"Total videos: {len(tasks)}")
-    print(f"Successful: {successful}")
-    print(f"Skipped: {skipped}")
-    print(f"Failed: {failed}")
-    if len(tasks) > 0:
-        print(f"Success rate: {successful/len(tasks)*100:.1f}%")
-        print(f"Skip rate: {skipped/len(tasks)*100:.1f}%")
-    
-    return results
+    """Process Ego4D dataset."""
+    return run_dataset_batch(
+        title='Ego4D Sequence Filtering',
+        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/',
+        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale') + '/',
+        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/',
+        dataset='ego4d',
+        reverse=reverse,
+        no_viz=no_viz,
+    )
 
 
 def main():
@@ -1451,20 +1055,20 @@ if __name__ == "__main__":
             successful = len([r for r in results if r is not None and r['num_episodes'] != 'skipped'])
             skipped = len([r for r in results if r is not None and r['num_episodes'] == 'skipped'])
             failed = len(results) - successful - skipped
-            print(f"✅ Successfully processed: {successful} videos")
-            print(f"⏭ Skipped (already exists): {skipped} videos")
-            print(f"❌ Failed: {failed} videos")
+            print(f"[OK] Successfully processed: {successful} videos")
+            print(f"[SKIP] Skipped (already exists): {skipped} videos")
+            print(f"[ERROR] Failed: {failed} videos")
             
             if successful > 0:
-                print(f"\n📁 Sample output files:")
+                print(f"\n Sample output files:")
                 for result in results[:3]:  # Show first 3 results
                     if result and result['num_episodes'] != 'skipped':
                         print(f"  - {result['data_dir']}/{result['video_name']}_fixation_merged_filtered_v2.csv")
                 
                 # Merge all video results into a single total_metadata.csv
                 print(f"\n{'='*60}")
-                print("📊 Merging all video results into total_metadata.csv...")
+                print(" Merging all video results into total_metadata.csv...")
                 print(f"{'='*60}")
                 merge_all_metadata(dataset, BASE_DATA_PATH)
         else:
-            print("❌ No videos were processed")
+            print("[ERROR] No videos were processed")

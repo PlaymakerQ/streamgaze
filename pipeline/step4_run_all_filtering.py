@@ -94,22 +94,22 @@ def run_filtering(input_file, output_file, log_file, task_type=None):
     
     # Load data
     data = load_json(input_file)
-    print(f"  📥 Loaded {len(data)} items")
+    print(f"  [INFO] Loaded {len(data)} items")
     
     # Detect task type if not provided
     if task_type is None:
         task_type = detect_task_type(os.path.basename(input_file))
     
     if task_type is None:
-        print(f"  ⚠️  Could not detect task type. Skipping.")
+        print(f"  [WARN]  Could not detect task type. Skipping.")
         return None
     
-    print(f"  🔍 Task type: {task_type}")
+    print(f"  [INFO] Task type: {task_type}")
     
     # Get filter function
     filter_func = TASK_FILTERS.get(task_type)
     if filter_func is None:
-        print(f"  ⚠️  No filter function for task type: {task_type}")
+        print(f"  [WARN]  No filter function for task type: {task_type}")
         return None
     
     # Open log file
@@ -120,7 +120,7 @@ def run_filtering(input_file, output_file, log_file, task_type=None):
         log.write(f"{'='*80}\n\n")
         
         # Run filtering
-        print(f"  🚀 Running {filter_func.__name__}...")
+        print(f"  [INFO] Running {filter_func.__name__}...")
         filtered_data, stats = filter_func(data, log)
         
         # Write stats to log
@@ -131,14 +131,14 @@ def run_filtering(input_file, output_file, log_file, task_type=None):
             log.write(f"{key}: {value}\n")
     
     # Print stats
-    print(f"\n  📊 Statistics:")
+    print(f"\n  [INFO] Statistics:")
     for key, value in stats.items():
         print(f"    - {key}: {value}")
     
     # Save filtered data
     save_json(filtered_data, output_file)
-    print(f"  💾 Saved {len(filtered_data)} filtered items to: {output_file}")
-    print(f"  📝 Log saved to: {log_file}")
+    print(f"  [INFO] Saved {len(filtered_data)} filtered items to: {output_file}")
+    print(f"  [INFO] Log saved to: {log_file}")
     
     return stats
 
@@ -176,7 +176,7 @@ def main():
     json_files = sorted(input_dir.glob(args.file_pattern))
     
     if not json_files:
-        print(f"❌ No JSON files found in {input_dir}")
+        print(f"[ERROR] No JSON files found in {input_dir}")
         return
     
     print(f"Found {len(json_files)} JSON files\n")
@@ -199,7 +199,7 @@ def main():
             else:
                 skip_count += 1
         except Exception as e:
-            print(f"  ❌ Error processing {filename}: {e}")
+            print(f"  [ERROR] Error processing {filename}: {e}")
             skip_count += 1
     
     # Summary
@@ -223,7 +223,7 @@ def main():
         'per_file_stats': all_stats
     }
     save_json(summary, summary_file)
-    print(f"📊 Summary saved to: {summary_file}")
+    print(f"[INFO] Summary saved to: {summary_file}")
 
 
 if __name__ == '__main__':

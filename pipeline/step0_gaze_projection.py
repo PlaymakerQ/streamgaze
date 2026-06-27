@@ -6,13 +6,13 @@ HoloAssist 3D gaze projection to 2D image
 
 Expected folder structure (HoloAssist_gaze):
     Export_py/
-    ├── Video_pitchshift.mp4      (RGB video)
-    ├── Video/
-    │   ├── Intrinsics.txt         (camera intrinsics)
-    │   ├── Pose_sync.txt          (camera poses)
-    │   └── VideoMp4Timing.txt     (video timing)
-    └── Eyes/
-        └── Eyes_sync.txt          (gaze data)
+    |-- Video_pitchshift.mp4      (RGB video)
+    |-- Video/
+    |   |-- Intrinsics.txt         (camera intrinsics)
+    |   |-- Pose_sync.txt          (camera poses)
+    |   `-- VideoMp4Timing.txt     (video timing)
+    `-- Eyes/
+        `-- Eyes_sync.txt          (gaze data)
 
 python step0_gaze_projection.py \
   --base_dir path/to/HoloAssist_gaze \
@@ -211,7 +211,7 @@ def process_batch(args):
         # Check if already processed
         if os.path.exists(csv_out) and not args.overwrite:
             skipped_count += 1
-            print(f"[{i}/{len(sessions)}] {session_name}: ⏭ Skipped (already exists)")
+            print(f"[{i}/{len(sessions)}] {session_name}: [SKIP] Skipped (already exists)")
             continue
         
         print(f"\n[{i}/{len(sessions)}] Processing: {session_name}")
@@ -225,18 +225,18 @@ def process_batch(args):
         try:
             process_single_session(session_args)
             success_count += 1
-            print(f"            ✓ Success")
+            print(f"            [OK] Success")
         except Exception as e:
             failed_count += 1
-            print(f"            ✗ Failed: {e}")
+            print(f"            [ERROR] Failed: {e}")
     
     # Summary
     print(f"\n{'=' * 80}")
     print(f"[SUMMARY] Batch processing complete")
     print(f"  Total sessions:   {len(sessions)}")
-    print(f"  ✓ Successful:     {success_count}")
-    print(f"  ⏭ Skipped:        {skipped_count}")
-    print(f"  ✗ Failed:         {failed_count}")
+    print(f"  [OK] Successful:     {success_count}")
+    print(f"  [SKIP] Skipped:        {skipped_count}")
+    print(f"  [ERROR] Failed:         {failed_count}")
     if len(sessions) > 0:
         print(f"  Success rate:     {success_count/len(sessions)*100:.1f}%")
 
@@ -296,22 +296,22 @@ def process_single_session(args):
         if not os.path.exists(p):
             print(f"[ERROR] Missing: {p}")
             sys.exit(1)
-    print(f"       ✓ All files found")
+    print(f"       [OK] All files found")
 
     # Load data
     print(f"\n[INFO] Loading camera and gaze data...")
     K, width, height = read_intrinsics_txt(intrinsics_path)
-    print(f"       ✓ Camera intrinsics: {width}x{height}")
+    print(f"       [OK] Camera intrinsics: {width}x{height}")
     
     pose_ticks, poses = read_pose_sync(pose_sync_path)
-    print(f"       ✓ Camera poses: {len(poses)} samples")
+    print(f"       [OK] Camera poses: {len(poses)} samples")
     
     start_ticks, end_ticks = read_video_mp4_timing(video_timing_path)
-    print(f"       ✓ Video timing: {start_ticks} to {end_ticks}")
+    print(f"       [OK] Video timing: {start_ticks} to {end_ticks}")
     
     gaze_ticks, gaze_origins, gaze_dirs, gaze_valid = read_gaze_sync(eyes_sync_path)
     valid_gaze_count = np.sum(gaze_valid)
-    print(f"       ✓ Gaze data: {len(gaze_ticks)} samples ({valid_gaze_count} valid)")
+    print(f"       [OK] Gaze data: {len(gaze_ticks)} samples ({valid_gaze_count} valid)")
 
     # Open video
     cap = cv2.VideoCapture(video_path)

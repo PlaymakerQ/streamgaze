@@ -12,7 +12,12 @@ import json
 from pathlib import Path
 
 # Import functions from preprocess module
-from preprocess import process_single_video, process_single_video_ego4d, process_single_video_egoexo, process_single_video_holoassist
+from preprocess import (
+    process_single_video,
+    process_single_video_ego4d,
+    process_single_video_egoexo,
+    process_single_video_holoassist,
+)
 
 # Get pipeline directory dynamically
 from constants import Const
@@ -25,16 +30,55 @@ PIPELINE_DIR = Const.raw_gaze_dir
 #   python step1_extract_fixation.py --dataset holoassist --fps 24.46 --no-viz
 #   python step1_extract_fixation.py --dataset holoassist --fps 24.46 --viz-only  # Only regenerate visualization
 
+DATASET_CHOICES = ['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist']
+
+
+def print_visualization_mode(viz_only=False, skip_viz=False):
+    """Print the current visualization mode."""
+    if viz_only:
+        print("[VISUALIZATION] Only regenerating visualization")
+    elif skip_viz:
+        print("[VISUALIZATION] Disabled for faster processing")
+    else:
+        print("[VISUALIZATION] Enabled")
+
+
+def should_skip_video(video_name, output_check, viz_check, viz_only=False):
+    """Return True when existing outputs mean the video should be skipped."""
+    if viz_only:
+        if os.path.exists(viz_check):
+            print(f"[SKIP] {video_name}: visualization already exists")
+            return True
+        if not os.path.exists(output_check):
+            print(f"[SKIP] {video_name}: fixation data not found")
+            return True
+        return False
+
+    if os.path.exists(output_check) and os.path.exists(viz_check):
+        print(f"[SKIP] {video_name}: already processed")
+        return True
+    return False
+
+
+def build_fine_grained_action_data(annotations):
+    """Convert fine-grained annotation rows to the action_data format."""
+    return [
+        {
+            'start': row['start_sec'],
+            'end': row['end_sec'],
+            'textAttribute_en': row['narration_en_no_hand_prompt'],
+            'annotation_id': row['annotation_id'],
+            'subset': row['subset'],
+        }
+        for _, row in annotations.iterrows()
+    ]
+
+
 def process_egtea(skip_viz=False, viz_only=False):
     """Process EGTEA dataset"""
-    print("🚀 Starting EGTEA Gaze Metadata Processing")
+    print("Starting EGTEA Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egtea")
@@ -70,23 +114,11 @@ def process_egtea(skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            # In viz-only mode, skip if visualization already exists
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (visualization already exists)")
-                continue
-            # Check if fixation data exists (required for viz-only mode)
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {video_name}, skipping...")
-                continue
-        else:
-            # Normal mode: skip if output already exists
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (already processed)")
-                continue
+        if should_skip_video(video_name, output_check, viz_check, viz_only):
+            continue
         
         if not os.path.exists(gaze_path):
-            print(f"❌ Gaze file not found for {video_name}, skipping...")
+            print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
         process_single_video(
@@ -105,14 +137,9 @@ def process_egtea(skip_viz=False, viz_only=False):
 
 def process_ego4d(fps=30, skip_viz=False, viz_only=False):
     """Process Ego4D dataset"""
-    print("🚀 Starting Ego4D Gaze Metadata Processing")
+    print("Starting Ego4D Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "ego4d", "v2")
@@ -142,23 +169,11 @@ def process_ego4d(fps=30, skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            # In viz-only mode, skip if visualization already exists
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (visualization already exists)")
-                continue
-            # Check if fixation data exists (required for viz-only mode)
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {video_name}, skipping...")
-                continue
-        else:
-            # Normal mode: skip if both files exist
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (already processed)")
-                continue
+        if should_skip_video(video_name, output_check, viz_check, viz_only):
+            continue
         
         if not os.path.exists(gaze_path):
-            print(f"❌ Gaze file not found for {video_name}, skipping...")
+            print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
         process_single_video_ego4d(
@@ -179,14 +194,9 @@ def process_ego4d(fps=30, skip_viz=False, viz_only=False):
 
 def process_egoexo(fps=30, skip_viz=False, viz_only=False):
     """Process EgoExoLearn dataset"""
-    print("🚀 Starting EgoExoLearn Gaze Metadata Processing")
+    print("Starting EgoExoLearn Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
@@ -214,23 +224,11 @@ def process_egoexo(fps=30, skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            # In viz-only mode, skip if visualization already exists
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (visualization already exists)")
-                continue
-            # Check if fixation data exists (required for viz-only mode)
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {video_name}, skipping...")
-                continue
-        else:
-            # Normal mode: skip if both files exist
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (already processed)")
-                continue
+        if should_skip_video(video_name, output_check, viz_check, viz_only):
+            continue
         
         if not os.path.exists(gaze_path):
-            print(f"❌ Gaze file not found for {video_name}, skipping...")
+            print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
         # Load action data (annotations) for this video
@@ -239,14 +237,22 @@ def process_egoexo(fps=30, skip_viz=False, viz_only=False):
             try:
                 with open(annotation_path, 'r') as f:
                     action_data = json.load(f)
-                print(f"   ✅ Loaded {len(action_data)} annotations")
+                print(f"   Loaded {len(action_data)} annotations")
             except Exception as e:
-                print(f"   ⚠️ Failed to load annotation: {e}")
+                print(f"   Warning: failed to load annotation: {e}")
                 action_data = None
         else:
-            print(f"   ⚠️ No annotation file found")
+            print("   Warning: no annotation file found")
         
-        process_single_video_egoexo(video_path, gaze_path, output_dir, action_data, fps=fps, skip_viz=skip_viz, viz_only=viz_only)
+        process_single_video_egoexo(
+            video_path,
+            gaze_path,
+            output_dir,
+            action_data,
+            fps=fps,
+            skip_viz=skip_viz,
+            viz_only=viz_only
+        )
     
     print(f"\n{'='*60}")
     print("All videos processed!")
@@ -256,14 +262,9 @@ def process_egoexo(fps=30, skip_viz=False, viz_only=False):
 
 def process_egoexo_lab(fps=30, skip_viz=False, viz_only=False):
     """Process EgoExoLearn Lab dataset with fine-grained annotations"""
-    print("🚀 Starting EgoExoLearn Lab Gaze Metadata Processing")
+    print("Starting EgoExoLearn Lab Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
@@ -302,46 +303,23 @@ def process_egoexo_lab(fps=30, skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (visualization already exists)")
-                skipped += 1
-                continue
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {video_name}, skipping...")
-                skipped += 1
-                continue
-        else:
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (already processed)")
-                skipped += 1
-                continue
+        if should_skip_video(video_name, output_check, viz_check, viz_only):
+            skipped += 1
+            continue
         
         if not os.path.exists(video_path):
-            print(f"❌ Video file not found: {video_path}")
+            print(f"[SKIP] {video_name}: video file not found: {video_path}")
             skipped += 1
             continue
         
         if not os.path.exists(gaze_path):
-            print(f"❌ Gaze file not found: {gaze_path}")
+            print(f"[SKIP] {video_name}: gaze file not found: {gaze_path}")
             skipped += 1
             continue
         
-        # Get fine-grained annotations for this video
         video_annotations = lab_annotations[lab_annotations['video_uid'] == video_name].copy()
-        
-        # Convert fine-grained annotations to action_data format (list of dicts)
-        action_data = []
-        for _, row in video_annotations.iterrows():
-            action_data.append({
-                'start': row['start_sec'],
-                'end': row['end_sec'],
-                'textAttribute_en': row['narration_en_no_hand_prompt'],  # Using no_hand_prompt version
-                'annotation_id': row['annotation_id'],
-                'subset': row['subset']
-            })
-        
-        print(f"   ✅ Loaded {len(action_data)} fine-grained annotations")
+        action_data = build_fine_grained_action_data(video_annotations)
+        print(f"   Loaded {len(action_data)} fine-grained annotations")
         
         # Process the video
         process_single_video_egoexo(video_path, gaze_path, output_dir, action_data, fps=fps, skip_viz=skip_viz, viz_only=viz_only)
@@ -358,14 +336,9 @@ def process_egoexo_lab(fps=30, skip_viz=False, viz_only=False):
 
 def process_egoexo_kitchen(fps=30, skip_viz=False, viz_only=False):
     """Process EgoExoLearn Kitchen dataset with fine-grained annotations"""
-    print("🚀 Starting EgoExoLearn Kitchen Gaze Metadata Processing")
+    print("Starting EgoExoLearn Kitchen Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
@@ -409,46 +382,23 @@ def process_egoexo_kitchen(fps=30, skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (visualization already exists)")
-                skipped += 1
-                continue
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {video_name}, skipping...")
-                skipped += 1
-                continue
-        else:
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {video_name} (already processed)")
-                skipped += 1
-                continue
+        if should_skip_video(video_name, output_check, viz_check, viz_only):
+            skipped += 1
+            continue
         
         if not os.path.exists(video_path):
-            print(f"❌ Video file not found: {video_path}")
+            print(f"[SKIP] {video_name}: video file not found: {video_path}")
             skipped += 1
             continue
         
         if not os.path.exists(gaze_path):
-            print(f"❌ Gaze file not found: {gaze_path}")
+            print(f"[SKIP] {video_name}: gaze file not found: {gaze_path}")
             skipped += 1
             continue
         
-        # Get fine-grained annotations for this video
         video_annotations = kitchen_annotations[kitchen_annotations['video_uid'] == video_name].copy()
-        
-        # Convert fine-grained annotations to action_data format (list of dicts)
-        action_data = []
-        for _, row in video_annotations.iterrows():
-            action_data.append({
-                'start': row['start_sec'],
-                'end': row['end_sec'],
-                'textAttribute_en': row['narration_en_no_hand_prompt'],  # Using no_hand_prompt version
-                'annotation_id': row['annotation_id'],
-                'subset': row['subset']
-            })
-        
-        print(f"   ✅ Loaded {len(action_data)} fine-grained annotations")
+        action_data = build_fine_grained_action_data(video_annotations)
+        print(f"   Loaded {len(action_data)} fine-grained annotations")
         
         # Process the video
         process_single_video_egoexo(video_path, gaze_path, output_dir, action_data, fps=fps, skip_viz=skip_viz, viz_only=viz_only)
@@ -465,14 +415,9 @@ def process_egoexo_kitchen(fps=30, skip_viz=False, viz_only=False):
 
 def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
     """Process HoloAssist dataset"""
-    print("🚀 Starting HoloAssist Gaze Metadata Processing")
+    print("Starting HoloAssist Gaze Metadata Processing")
     print("=" * 60)
-    if viz_only:
-        print("🎨 VISUALIZATION ONLY MODE (regenerating visualization)")
-    elif skip_viz:
-        print("⚡ Visualization DISABLED (faster processing)")
-    else:
-        print("🎨 Visualization ENABLED")
+    print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
     base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "holoassist", "full")
@@ -495,7 +440,7 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
         annotated_video_names = set([v.get('video_name') for v in annotation_data if 'video_name' in v])
         print(f"Videos with annotations: {len(annotated_video_names)}")
     else:
-        print("⚠️ Annotation file not found, proceeding without action information")
+        print("Warning: annotation file not found, proceeding without action information")
     
     # Find all session directories with Export_py
     session_dirs = sorted([d for d in Path(base_dir).iterdir() if d.is_dir()])
@@ -524,7 +469,7 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
     
     print(f"\nFound {len(valid_sessions)} valid sessions with gaze data AND annotations")
     if skipped_no_annotation > 0:
-        print(f"⏭️  Skipped {skipped_no_annotation} sessions without annotations")
+        print(f"Skipped {skipped_no_annotation} sessions without annotations")
     
     # Process each session
     for i, session in enumerate(valid_sessions, 1):
@@ -538,20 +483,8 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
         output_check = os.path.join(output_dir, session_name, f"{session_name}_fixation_dataset.csv")
         viz_check = os.path.join(output_dir, session_name, f"{session_name}_gaze_visualization.mp4")
         
-        if viz_only:
-            # In viz-only mode, skip if visualization already exists
-            if os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {session_name} (visualization already exists)")
-                continue
-            # Check if fixation data exists (required for viz-only mode)
-            if not os.path.exists(output_check):
-                print(f"❌ Fixation data not found for {session_name}, skipping...")
-                continue
-        else:
-            # Normal mode: skip if both files exist
-            if os.path.exists(output_check) and os.path.exists(viz_check):
-                print(f"⏭️  SKIPPING: {session_name} (already processed)")
-                continue
+        if should_skip_video(session_name, output_check, viz_check, viz_only):
+            continue
         
         # Find action data for this video
         video_action_data = None
@@ -561,11 +494,11 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
                     video_action_data = video_anno.get('events', [])
                     # Filter for fine-grained actions only
                     video_action_data = [e for e in video_action_data if e.get('label') == 'Fine grained action']
-                    print(f"   ✅ Loaded {len(video_action_data)} fine-grained actions")
+                    print(f"   Loaded {len(video_action_data)} fine-grained actions")
                     break
         
         if video_action_data is None:
-            print(f"   ⚠️ No fine-grained action annotations found for {session_name}")
+            print(f"   Warning: no fine-grained action annotations found for {session_name}")
         
         # Pass session_name explicitly to avoid using "Video_pitchshift" as video_name
         process_single_video_holoassist(video_path, gaze_path, output_dir, video_action_data, fps=fps, skip_viz=skip_viz, viz_only=viz_only, video_name=session_name)
@@ -581,7 +514,7 @@ def main():
     parser = argparse.ArgumentParser(description='Process gaze metadata for different datasets')
     parser.add_argument('--dataset', type=str,
                         default="egtea",
-                        choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'],
+                        choices=DATASET_CHOICES,
                         help='Dataset to process: egtea, ego4d, egoexo, egoexo-lab, kitchen, or holoassist')
     parser.add_argument('--fps', type=float, default=30,
                         help='FPS for videos (default: 30, HoloAssist: 24.46)')
@@ -594,24 +527,18 @@ def main():
     
     # Check for conflicting flags
     if args.no_viz and args.viz_only:
-        print("❌ Error: --no-viz and --viz-only are mutually exclusive")
+        print("Error: --no-viz and --viz-only are mutually exclusive")
         return
-    
-    if args.dataset == 'egtea':
-        process_egtea(skip_viz=args.no_viz, viz_only=args.viz_only)
-    elif args.dataset == 'ego4d':
-        process_ego4d(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only)
-    elif args.dataset == 'egoexo':
-        process_egoexo(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only)
-    elif args.dataset == 'egoexo-lab':
-        process_egoexo_lab(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only)
-    elif args.dataset == 'kitchen':
-        process_egoexo_kitchen(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only)
-    elif args.dataset == 'holoassist':
-        process_holoassist(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only)
-    else:
-        print(f"Unknown dataset: {args.dataset}")
-        print("Please choose 'egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', or 'holoassist'")
+
+    processors = {
+        'egtea': lambda: process_egtea(skip_viz=args.no_viz, viz_only=args.viz_only),
+        'ego4d': lambda: process_ego4d(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only),
+        'egoexo': lambda: process_egoexo(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only),
+        'egoexo-lab': lambda: process_egoexo_lab(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only),
+        'kitchen': lambda: process_egoexo_kitchen(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only),
+        'holoassist': lambda: process_holoassist(fps=args.fps, skip_viz=args.no_viz, viz_only=args.viz_only),
+    }
+    processors[args.dataset]()
 
 
 if __name__ == "__main__":
