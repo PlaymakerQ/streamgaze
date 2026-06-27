@@ -18,3 +18,4 @@ src/vispeak/
 assets/
 /save/
 /raw_gaze_dataset/
+/data/

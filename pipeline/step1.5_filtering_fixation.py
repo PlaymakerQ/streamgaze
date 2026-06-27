@@ -32,7 +32,8 @@ import unicodedata
 import re
 
 # Get pipeline directory dynamically
-PIPELINE_DIR = os.path.dirname(os.path.abspath(__file__))
+from constants import Const
+PIPELINE_DIR = Const.raw_gaze_dir
 
 # =============================================================================
 # Utility Functions
@@ -584,7 +585,16 @@ def process_video_complete(video_data, output_base_path):
 # Configuration and Constants
 # =============================================================================
 
-def run_dataset_batch(title, base_data_path, video_base_path, output_base_path, dataset, reverse=False, task_label='video', task_filter=None):
+def run_dataset_batch(
+        title,
+        base_data_path,
+        video_base_path,
+        output_base_path,
+        dataset,
+        reverse=False,
+        task_label='video',
+        task_filter=None
+):
     """Run the shared fixation filtering loop for a dataset."""
     print(f"Starting {title}")
     print("=" * 60)
@@ -756,7 +766,9 @@ def process_holoassist(reverse=False):
 def main():
     """Main execution function with dataset selection"""
     parser = argparse.ArgumentParser(description='Filter and merge fixations for different datasets')
-    parser.add_argument('--dataset', type=str, choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'], required=True,
+    parser.add_argument('--dataset', type=str,
+                        default="egtea",
+                        choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'],
                         help='Dataset to process: egtea, ego4d, egoexo, egoexo-lab, kitchen, or holoassist')
     parser.add_argument('--reverse', action='store_true',
                         help='Process videos in reverse order (useful for parallel processing)')
