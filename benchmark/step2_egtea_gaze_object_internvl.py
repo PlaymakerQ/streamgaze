@@ -27,7 +27,7 @@ from preprocess.internvl_processor import (
 
 # Get pipeline directory dynamically
 from constants import Const
-PIPELINE_DIR = Const.raw_gaze_dir
+PIPELINE_DIR = Const.processed_data_root
 
 # Usage:
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python step2_egtea_gaze_object_internvl.py --dataset egtea

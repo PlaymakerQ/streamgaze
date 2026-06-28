@@ -33,7 +33,7 @@ import re
 
 # Get pipeline directory dynamically
 from constants import Const
-PIPELINE_DIR = Const.raw_gaze_dir
+PIPELINE_DIR = Const.processed_data_root
 
 # =============================================================================
 # Utility Functions

@@ -166,7 +166,7 @@ def main():
     args = parser.parse_args()
 
     from constants import Const
-    PIPELINE_DIR = Const.raw_gaze_dir
+    PIPELINE_DIR = Const.processed_data_root
 
     data_name = "egtea"
 

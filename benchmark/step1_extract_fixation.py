@@ -21,7 +21,7 @@ from preprocess import (
 
 # Get pipeline directory dynamically
 from constants import Const
-PIPELINE_DIR = Const.raw_gaze_dir
+PIPELINE_DIR = Const.processed_data_root
 
 #   python step1_extract_fixation.py --dataset egtea
 #   python step1_extract_fixation.py --dataset ego4d --fps 30
