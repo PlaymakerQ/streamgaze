@@ -52,8 +52,34 @@ from qa_generation.future import (
     generate_object_remind_qa
 )
 from qa_generation.present import Present_object_identity_attribute
-from transformers import Qwen3VLMoeForConditionalGeneration, AutoProcessor
+from transformers import AutoProcessor
 import torch
+
+QWEN3_VL_MODELS = {
+    "1B": "Qwen/Qwen3-VL-1B-Instruct",
+    "2B": "Qwen/Qwen3-VL-2B-Instruct",
+    "4B": "Qwen/Qwen3-VL-4B-Instruct",
+    "8B": "Qwen/Qwen3-VL-8B-Instruct",
+    "30B": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+}
+
+DEFAULT_QWEN_MODEL = "30B"
+
+
+def resolve_qwen_model_name(model_name):
+    """Resolve a model size alias or pass through a full Hugging Face model name."""
+    return QWEN3_VL_MODELS.get(model_name, model_name)
+
+
+def get_qwen_model_class(model_name):
+    """Choose the dense or MoE Qwen3-VL model class for the requested checkpoint."""
+    if "A3B" in model_name:
+        from transformers import Qwen3VLMoeForConditionalGeneration
+        return Qwen3VLMoeForConditionalGeneration
+
+    from transformers import Qwen3VLForConditionalGeneration
+    return Qwen3VLForConditionalGeneration
+
 
 # Helper function for safe JSON parsing
 def safe_json_parse_from_csv(json_str):
@@ -260,7 +286,8 @@ class Qwen3VLClient:
     
     def __init__(self, model_name="Qwen/Qwen3-VL-30B-A3B-Instruct"):
         print(f"Loading Qwen3-VL model: {model_name}...")
-        self.model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
+        model_class = get_qwen_model_class(model_name)
+        self.model = model_class.from_pretrained(
             model_name,
             torch_dtype=torch.bfloat16,
             attn_implementation="flash_attention_2",
@@ -353,7 +380,13 @@ if __name__ == "__main__":
                        choices=['present', 'past', 'future', 'all'],
                        default=['all'],
                        help='Task types to generate: present, past, future, or all (default: all)')
+    parser.add_argument('--qwen_model_name', '--qwen-model-name',
+                       default=DEFAULT_QWEN_MODEL,
+                       choices=list(QWEN3_VL_MODELS.keys()) + list(QWEN3_VL_MODELS.values()),
+                       help=f'Qwen3-VL model size or full model name to use (default: {DEFAULT_QWEN_MODEL})')
     args = parser.parse_args()
+
+    args.use_human_verified = True
     
     # Process task selection
     if 'all' in args.tasks:
@@ -366,7 +399,9 @@ if __name__ == "__main__":
         generate_future = 'future' in args.tasks
     
     # Initialize Qwen3-VL model (replaces GPT-4o)
-    client = Qwen3VLClient(model_name="Qwen/Qwen3-VL-30B-A3B-Instruct")
+    resolved_qwen_model_name = resolve_qwen_model_name(args.qwen_model_name)
+    print(f"[INFO] Loading Qwen3-VL model: {args.qwen_model_name} -> {resolved_qwen_model_name}")
+    client = Qwen3VLClient(model_name=resolved_qwen_model_name)
     
     # Dataset-specific default configurations
     default_configs = {
@@ -420,6 +455,7 @@ if __name__ == "__main__":
     print(f"  Video base dir: {video_base_dir}")
     print(f"  Save path: {save_path}")
     print(f"  Action file: {action_file}")
+    print(f"  Qwen model: {resolved_qwen_model_name}")
     print(f"  Task types: {', '.join(args.tasks)}")
     print(f"    - Generate Present: {generate_present}")
     print(f"    - Generate Past: {generate_past}")

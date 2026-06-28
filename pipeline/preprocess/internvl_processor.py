@@ -400,7 +400,9 @@ def count_total_fixations(base_dir):
 
 
 class InternVLProcessor_v2:
-    def __init__(self, model_path="OpenGVLab/InternVL3_5-38B", gpu_id=None):
+    def __init__(self,
+                 model_path="OpenGVLab/InternVL3_5-38B",
+                 gpu_id=None):
         """Initialize InternVL model for two-stage video analysis"""
         print(f"🚀 Loading InternVL model v2: {model_path}")
         
@@ -1060,11 +1062,15 @@ Focus on objects/people outside the masked center area. Return only valid JSON. 
 # Global processor instance for v2
 _processor_v2 = None
 
-def get_processor_v2(gpu_id=None):
+def get_processor_v2(
+        model_name="OpenGVLab/InternVL3_5-38B", gpu_id=None):
     """Get or create global processor v2 instance"""
     global _processor_v2
     if _processor_v2 is None:
-        _processor_v2 = InternVLProcessor_v2(gpu_id=gpu_id)
+        _processor_v2 = InternVLProcessor_v2(
+            model_path=model_name,
+            gpu_id=gpu_id
+        )
     return _processor_v2
 
 def extract_objects_and_scene_from_video_clip_internvl_v2(

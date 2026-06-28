@@ -28,12 +28,6 @@ PIPELINE_DIR = Const.raw_gaze_dir
 # CUDA_VISIBLE_DEVICES=4,5,6,7 python step2_egtea_gaze_object_internvl.py --dataset egoexo
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python step2_egtea_gaze_object_internvl.py --dataset holoassist
 
-print("[OK] Enhanced function with scene caption loaded!")
-print("[OK] Multi-threaded function loaded!")
-print(" InternVL processor ready!")
-
-# Initialize InternVL processor v2 (single instance for memory safety)
-print(" Initializing InternVL-38B model v2...")
 import torch
 import gc
 
@@ -42,10 +36,43 @@ if torch.cuda.is_available():
     torch.cuda.empty_cache()
 gc.collect()
 
-# Initialize single processor instance (no multi-GPU loading)
-internvl_processor_v2 = get_processor_v2()
-print("[OK] InternVL-38B model v2 loaded and ready!")
-print(f" GPU memory after model loading: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+INTERNVL_MODELS = {
+    # InternVL3.5
+    "1B":  "OpenGVLab/InternVL3_5-1B",
+    "2B":  "OpenGVLab/InternVL3_5-2B",
+    "4B":  "OpenGVLab/InternVL3_5-4B",
+    "8B":  "OpenGVLab/InternVL3_5-8B",
+    "14B": "OpenGVLab/InternVL3_5-14B",
+    "26B": "OpenGVLab/InternVL3_5-26B",
+    "38B": "OpenGVLab/InternVL3_5-38B",
+}
+
+DEFAULT_MODEL = "1B"
+
+internvl_processor_v2 = None
+
+
+def resolve_internvl_model_name(model_name):
+    """Resolve a model size alias or pass through a full Hugging Face model name."""
+    return INTERNVL_MODELS.get(model_name, model_name)
+
+
+def initialize_internvl_processor(model_name=DEFAULT_MODEL):
+    """Initialize the global InternVL processor after command-line args are parsed."""
+    global internvl_processor_v2
+
+    resolved_model_name = resolve_internvl_model_name(model_name)
+    print("[OK] Enhanced function with scene caption loaded!")
+    print("[OK] Multi-threaded function loaded!")
+    print("InternVL processor ready!")
+    print(f"Initializing InternVL model v2: {model_name} -> {resolved_model_name}")
+
+    # Initialize single processor instance (no multi-GPU loading)
+    internvl_processor_v2 = get_processor_v2(model_name=resolved_model_name)
+    print(f"[OK] InternVL model v2 loaded and ready: {resolved_model_name}")
+    if torch.cuda.is_available():
+        print(f"GPU memory after model loading: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
+    return internvl_processor_v2
 
 
 def process_egtea(reverse=False, start_pct=0):
@@ -1602,14 +1629,22 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
 def main():
     """Main processing function with dataset selection"""
     parser = argparse.ArgumentParser(description='Process gaze object extraction with InternVL for different datasets')
-    parser.add_argument('--dataset', type=str, choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'egoexo-kitchen', 'holoassist'], required=True,
+    parser.add_argument('--dataset', type=str,
+                        choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'egoexo-kitchen', 'holoassist'],
+                        default='egtea',
                         help='Dataset to process: egtea, ego4d, egoexo, egoexo-lab, egoexo-kitchen, or holoassist')
     parser.add_argument('--reverse', action='store_true',
                         help='Process videos in reverse order (useful for parallel processing)')
     parser.add_argument('--start-pct', type=int, default=0,
                         help='Start processing from this percentage point (0-100)')
+    parser.add_argument('--internvl_model_name', '--internvl-model-name',
+                        default=DEFAULT_MODEL,
+                        choices=list(INTERNVL_MODELS.keys()),
+                        help=f'InternVL model size to use (default: {DEFAULT_MODEL})')
     
     args = parser.parse_args()
+
+    initialize_internvl_processor(args.internvl_model_name)
     
     if args.dataset == 'egtea':
         process_egtea(reverse=args.reverse, start_pct=args.start_pct)

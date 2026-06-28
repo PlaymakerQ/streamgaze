@@ -1009,7 +1009,8 @@ def process_ego4d(reverse=False, no_viz=False):
 def main():
     """Main execution function with dataset selection"""
     parser = argparse.ArgumentParser(description='Sequence filtering: merge and filter consecutive similar episodes')
-    parser.add_argument('--dataset', type=str, choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'], required=True,
+    parser.add_argument('--dataset', type=str, choices=['egtea', 'ego4d', 'egoexo', 'egoexo-lab', 'kitchen', 'holoassist'],
+                        default="egtea",
                         help='Dataset to process: egtea, ego4d, egoexo, egoexo-lab, kitchen, or holoassist')
     parser.add_argument('--reverse', action='store_true',
                         help='Process videos in reverse order (useful for parallel processing)')
