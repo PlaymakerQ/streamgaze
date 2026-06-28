@@ -31,6 +31,11 @@ from filtering import (
     filter_past_scene_reconstruction,
     filter_past_transition_pattern,
 )
+from filtering.utils import (
+    DEFAULT_QWEN_MODEL,
+    QWEN3_VL_MODELS,
+    configure_qwen_model,
+)
 
 # Task type to filter function mapping
 TASK_FILTERS = {
@@ -145,21 +150,32 @@ def run_filtering(input_file, output_file, log_file, task_type=None):
 
 def main():
     parser = argparse.ArgumentParser(description='Run QA filtering pipeline')
-    parser.add_argument('--input_dir', type=str, required=True,
+    parser.add_argument('--input_dir', type=str, 
                         help='Directory containing input QA JSON files')
-    parser.add_argument('--output_dir', type=str, required=True,
+    parser.add_argument('--output_dir', type=str, 
                         help='Directory to save filtered QA JSON files')
     parser.add_argument('--log_dir', type=str, default=None,
                         help='Directory to save log files (default: output_dir/logs)')
     parser.add_argument('--file_pattern', type=str, default='*.json',
                         help='File pattern to match (default: *.json)')
+    parser.add_argument('--qwen_model_name', '--qwen-model-name',
+                        default=DEFAULT_QWEN_MODEL,
+                        choices=list(QWEN3_VL_MODELS.keys()) + list(QWEN3_VL_MODELS.values()),
+                        help=f'Qwen3-VL model size or full model name to use (default: {DEFAULT_QWEN_MODEL})')
     
     args = parser.parse_args()
-    
+
+    from constants import Const
+    PIPELINE_DIR = Const.raw_gaze_dir
+
+    data_name = "egtea"
+
     # Setup directories
-    input_dir = Path(args.input_dir)
-    output_dir = Path(args.output_dir)
-    log_dir = Path(args.log_dir) if args.log_dir else output_dir / 'logs'
+    input_dir = Path(PIPELINE_DIR) / "final_data" / data_name / "qa_raw"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / data_name / "qa_filtered"
+    log_dir = Path(PIPELINE_DIR) / "final_data" / data_name / 'logs'
+
+    resolved_qwen_model_name = configure_qwen_model(args.qwen_model_name)
     
     output_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -170,6 +186,7 @@ def main():
     print(f"Input Directory:  {input_dir}")
     print(f"Output Directory: {output_dir}")
     print(f"Log Directory:    {log_dir}")
+    print(f"Qwen Model:       {resolved_qwen_model_name}")
     print(f"{'='*80}\n")
     
     # Find all JSON files
@@ -217,6 +234,7 @@ def main():
         'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
         'input_dir': str(input_dir),
         'output_dir': str(output_dir),
+        'qwen_model': resolved_qwen_model_name,
         'total_files': len(json_files),
         'success_count': success_count,
         'skip_count': skip_count,

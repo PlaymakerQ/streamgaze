@@ -3,17 +3,57 @@ Common utility functions for filtering
 """
 
 import re
-from transformers import Qwen3VLMoeForConditionalGeneration, AutoProcessor
+from transformers import AutoProcessor
 
 # Qwen3VL Model Configuration
-print("Loading Qwen3VL-30B model...")
-qwen_model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-    "Qwen/Qwen3-VL-30B-A3B-Instruct", 
-    dtype="auto", 
-    device_map="auto"
-)
-qwen_processor = AutoProcessor.from_pretrained("Qwen/Qwen3-VL-30B-A3B-Instruct")
-print("Qwen3VL-30B model loaded successfully!")
+QWEN3_VL_MODELS = {
+    "1B": "Qwen/Qwen3-VL-1B-Instruct",
+    "2B": "Qwen/Qwen3-VL-2B-Instruct",
+    "4B": "Qwen/Qwen3-VL-4B-Instruct",
+    "8B": "Qwen/Qwen3-VL-8B-Instruct",
+    "30B": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+}
+DEFAULT_QWEN_MODEL = "2B"
+
+qwen_model_name = None
+qwen_model = None
+qwen_processor = None
+
+
+def resolve_qwen_model_name(model_name):
+    """Resolve a model size alias or pass through a full Hugging Face model name."""
+    return QWEN3_VL_MODELS.get(model_name, model_name)
+
+
+def get_qwen_model_class(model_name):
+    """Choose the dense or MoE Qwen3-VL model class for the requested checkpoint."""
+    if "A3B" in model_name:
+        from transformers import Qwen3VLMoeForConditionalGeneration
+        return Qwen3VLMoeForConditionalGeneration
+
+    from transformers import Qwen3VLForConditionalGeneration
+    return Qwen3VLForConditionalGeneration
+
+
+def configure_qwen_model(model_name=DEFAULT_QWEN_MODEL):
+    """Configure and load the Qwen3VL model used by filtering."""
+    global qwen_model_name, qwen_model, qwen_processor
+
+    resolved_model_name = resolve_qwen_model_name(model_name)
+    if qwen_model is not None and qwen_processor is not None and qwen_model_name == resolved_model_name:
+        return resolved_model_name
+
+    print(f"Loading Qwen3VL model: {model_name} -> {resolved_model_name}")
+    model_class = get_qwen_model_class(resolved_model_name)
+    qwen_model = model_class.from_pretrained(
+        resolved_model_name,
+        dtype="auto",
+        device_map="auto"
+    )
+    qwen_processor = AutoProcessor.from_pretrained(resolved_model_name)
+    qwen_model_name = resolved_model_name
+    print(f"Qwen3VL model loaded successfully: {qwen_model_name}")
+    return qwen_model_name
 
 # Human-related keywords
 HUMAN_KEYWORDS = ['hand', 'hands', 'finger', 'fingers', 'arm', 'arms', 
@@ -45,10 +85,14 @@ def is_human_related(obj_name):
 
 def get_qwen_model():
     """Get Qwen3VL model"""
+    if qwen_model is None:
+        configure_qwen_model()
     return qwen_model
 
 def get_qwen_processor():
     """Get Qwen3VL processor"""
+    if qwen_processor is None:
+        configure_qwen_model()
     return qwen_processor
 
 

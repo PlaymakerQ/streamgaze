@@ -8,21 +8,26 @@ from PIL import Image
 from tqdm import tqdm
 from typing import List, Dict
 import re
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
-# Qwen3 model setup
-model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
+# Qwen3 model setup (configured by step3_qa_gen.py)
+model_name = None
+qwen_generate_fn = None
 
-# load the tokenizer and the model
-print("Loading Qwen3 model...")
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(
-    model_name,
-    torch_dtype="auto",
-    device_map="auto"
-)
-print("Qwen3 model loaded successfully!")
+
+def configure_qwen_model(qwen_model_name, generate_fn):
+    """Use the Qwen model already loaded by step3_qa_gen.py."""
+    global model_name, qwen_generate_fn
+    model_name = qwen_model_name
+    qwen_generate_fn = generate_fn
+    print(f"Qwen model configured for present.py: {model_name}")
+
+
+def qwen3_generate(prompt, max_tokens=500, temperature=0.3):
+    """Helper function to call Qwen3 model."""
+    if qwen_generate_fn is None:
+        raise RuntimeError("Qwen model is not configured. Call configure_qwen_model() before generation.")
+
+    return qwen_generate_fn(prompt, max_tokens=max_tokens, temperature=temperature)
 
 def safe_json_parse(gpt_output): 
     """Strip code fences then parse JSON.""" 
@@ -95,28 +100,7 @@ Only return the JSON object. No explanation.
 
 def call_qwen3_generate_mcq_with_template(object_identity, detailed_caption):
     prompt = build_gpt_prompt_with_templates(object_identity, detailed_caption)
-    
-    # prepare the model input
-    messages = [
-        {"role": "user", "content": prompt}
-    ]
-    text = tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    model_inputs = tokenizer([text], return_tensors="pt").to(model.device)
-
-    # conduct text completion
-    generated_ids = model.generate(
-        **model_inputs,
-        max_new_tokens=16384,
-        temperature=0.3,
-        do_sample=True
-    )
-    output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist() 
-    
-    output = tokenizer.decode(output_ids, skip_special_tokens=True)
+    output = qwen3_generate(prompt, max_tokens=16384, temperature=0.3)
     return safe_json_parse(output)
 
 def generate_present_object_attribute_MCQ_template(

@@ -48,22 +48,26 @@ from qa_generation.past import (
     generate_scene_reconstruction_qa
 )
 from qa_generation.future import (
+    configure_qwen_model as configure_future_qwen_model,
     generate_future_action_qa,
     generate_object_remind_qa
 )
-from qa_generation.present import Present_object_identity_attribute
+from qa_generation.present import (
+    configure_qwen_model as configure_present_qwen_model,
+    Present_object_identity_attribute
+)
 from transformers import AutoProcessor
 import torch
 
 QWEN3_VL_MODELS = {
-    "1B": "Qwen/Qwen3-VL-1B-Instruct",
-    "2B": "Qwen/Qwen3-VL-2B-Instruct",
-    "4B": "Qwen/Qwen3-VL-4B-Instruct",
-    "8B": "Qwen/Qwen3-VL-8B-Instruct",
-    "30B": "Qwen/Qwen3-VL-30B-A3B-Instruct",
+    "1B":   "Qwen/Qwen3-VL-1B-Instruct",
+    "2B":   "Qwen/Qwen3-VL-2B-Instruct",
+    "4B":   "Qwen/Qwen3-VL-4B-Instruct",
+    "8B":   "Qwen/Qwen3-VL-8B-Instruct",
+    "30B":  "Qwen/Qwen3-VL-30B-A3B-Instruct",
 }
 
-DEFAULT_QWEN_MODEL = "30B"
+DEFAULT_QWEN_MODEL = "2B"
 
 
 def resolve_qwen_model_name(model_name):
@@ -361,7 +365,8 @@ if __name__ == "__main__":
     
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Generate QA tasks for egocentric videos')
-    parser.add_argument('--dataset', type=str, required=True, 
+    parser.add_argument('--dataset', type=str,
+                        default="egtea",
                        choices=['egtea', 'ego4d', 'egoexo', 'holoassist'],
                        help='Dataset to process')
     parser.add_argument('--metadata-file', type=str, default=None,
@@ -402,6 +407,17 @@ if __name__ == "__main__":
     resolved_qwen_model_name = resolve_qwen_model_name(args.qwen_model_name)
     print(f"[INFO] Loading Qwen3-VL model: {args.qwen_model_name} -> {resolved_qwen_model_name}")
     client = Qwen3VLClient(model_name=resolved_qwen_model_name)
+
+    def qwen3vl_generate(prompt, max_tokens=500, temperature=0.3):
+        response = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return response.choices[0].message.content
+
+    configure_future_qwen_model(resolved_qwen_model_name, qwen3vl_generate)
+    configure_present_qwen_model(resolved_qwen_model_name, qwen3vl_generate)
     
     # Dataset-specific default configurations
     default_configs = {
@@ -436,7 +452,7 @@ if __name__ == "__main__":
     
     # Use human-verified metadata if flag is set
     if args.use_human_verified:
-        human_verified_path = os.path.join(os.path.dirname(PIPELINE_DIR), 'dataset', 'metadata', f'{args.dataset}.csv')
+        human_verified_path = os.path.join(Const.data_root, 'metadata', f'{args.dataset}.csv')
         print(f"[INFO] Using human-verified metadata: {human_verified_path}")
         metadata_file = human_verified_path
     else:

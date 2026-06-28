@@ -13,21 +13,21 @@ def save_frequency_analysis(other_object_counter, output_path, video_name):
         f.write(f"Frequency Analysis Results for {video_name}\n")
         f.write("=" * 60 + "\n\n")
         
-        f.write(f"🔍 Total unique other objects found: {len(other_object_counter)}\n")
-        f.write(f"📊 Total other object instances: {sum(other_object_counter.values())}\n\n")
+        f.write(f"Total unique other objects found: {len(other_object_counter)}\n")
+        f.write(f"Total other object instances: {sum(other_object_counter.values())}\n\n")
         
-        f.write("📦 TOP 20 OTHER OBJECTS BY FREQUENCY:\n")
+        f.write("TOP 20 OTHER OBJECTS BY FREQUENCY:\n")
         for i, (obj_name, count) in enumerate(other_object_counter.most_common(20), 1):
             f.write(f"  {i:2d}. {obj_name}: {count} times\n")
         f.write("\n")
         
-        f.write("📦 ALL OTHER OBJECTS FREQUENCY:\n")
+        f.write("ALL OTHER OBJECTS FREQUENCY:\n")
         for obj_name, count in sorted(other_object_counter.items()):
             f.write(f"  {obj_name}: {count}\n")
         f.write("\n")
         
         single_occurrence = [obj for obj, count in other_object_counter.items() if count == 1]
-        f.write(f"🔸 Objects appearing only once ({len(single_occurrence)} objects):\n")
+        f.write(f"Objects appearing only once ({len(single_occurrence)} objects):\n")
         for obj in sorted(single_occurrence):
             f.write(f"  - {obj}\n")
 

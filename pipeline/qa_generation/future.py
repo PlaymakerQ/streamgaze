@@ -1,47 +1,33 @@
 import pandas as pd
 import json
 import random
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # Set random seed for reproducibility
 random.seed(42)
 
 # ========================================
-# Qwen3 Model Setup (Global)
+# Qwen3 Model Setup (configured by step3_qa_gen.py)
 # ========================================
-print("Loading Qwen3 model for future.py...")
-qwen_model_name = "Qwen/Qwen3-30B-A3B-Instruct-2507"
-qwen_tokenizer = AutoTokenizer.from_pretrained(qwen_model_name)
-qwen_model = AutoModelForCausalLM.from_pretrained(
-    qwen_model_name,
-    torch_dtype="auto",
-    device_map="auto"
-)
-print("✓ Qwen3 model loaded successfully for future.py!")
+qwen_model_name = None
+qwen_generate_fn = None
+
+
+def configure_qwen_model(model_name, generate_fn):
+    """Use the Qwen model already loaded by step3_qa_gen.py."""
+    global qwen_model_name, qwen_generate_fn
+    qwen_model_name = model_name
+    qwen_generate_fn = generate_fn
+    print(f"Qwen model configured for future.py: {qwen_model_name}")
 
 # Global cache for action conversions (across all videos)
 ACTION_CONVERSION_CACHE = {}
 
 def qwen3_generate(prompt, max_tokens=500, temperature=0.3):
     """Helper function to call Qwen3 model"""
-    messages = [{"role": "user", "content": prompt}]
-    text = qwen_tokenizer.apply_chat_template(
-        messages,
-        tokenize=False,
-        add_generation_prompt=True,
-    )
-    model_inputs = qwen_tokenizer([text], return_tensors="pt").to(qwen_model.device)
-    
-    generated_ids = qwen_model.generate(
-        **model_inputs,
-        max_new_tokens=max_tokens,
-        temperature=temperature,
-        do_sample=True
-    )
-    output_ids = generated_ids[0][len(model_inputs.input_ids[0]):].tolist()
-    output = qwen_tokenizer.decode(output_ids, skip_special_tokens=True)
-    return output
+    if qwen_generate_fn is None:
+        raise RuntimeError("Qwen model is not configured. Call configure_qwen_model() before generation.")
+
+    return qwen_generate_fn(prompt, max_tokens=max_tokens, temperature=temperature)
 
 # ========================================
 # FUTURE PREDICTION QA FUNCTIONS

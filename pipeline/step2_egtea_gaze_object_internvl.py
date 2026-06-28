@@ -1,7 +1,14 @@
 import argparse
 import os
+import pickle
+import sys
 import time
 from collections import Counter
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # from moviepy.editor import VideoFileClip
 import pandas as pd
@@ -73,6 +80,22 @@ def initialize_internvl_processor(model_name=DEFAULT_MODEL):
     if torch.cuda.is_available():
         print(f"GPU memory after model loading: {torch.cuda.memory_allocated() / 1e9:.2f} GB")
     return internvl_processor_v2
+
+
+def get_or_create_internvl_results(cache_path, **kwargs):
+    """Load cached InternVL results or run inference and save them as pickle."""
+    if os.path.exists(cache_path):
+        print(f"[CACHE] Loading InternVL results from: {cache_path}")
+        with open(cache_path, "rb") as f:
+            return pickle.load(f)
+
+    print(f"[CACHE] InternVL results cache not found; generating: {cache_path}")
+    results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(**kwargs)
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    with open(cache_path, "wb") as f:
+        pickle.dump(results, f)
+    print(f"[CACHE] Saved InternVL results to: {cache_path}")
+    return results
 
 
 def process_egtea(reverse=False, start_pct=0):
@@ -227,7 +250,9 @@ def process_egtea(reverse=False, start_pct=0):
             # Disable GIF saving (for performance improvement)
             # video_output_dir = os.path.join(base_dir, video_name, 'internvl_object_clips')
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 save_images=False,
@@ -479,7 +504,9 @@ def process_ego4d(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 save_images=False,
@@ -738,7 +765,9 @@ def process_egoexo(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 save_images=False,
@@ -1036,7 +1065,9 @@ def process_holoassist(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg:.1f} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 save_images=False,
@@ -1283,7 +1314,9 @@ def process_egoexo_lab(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 save_images=False,
@@ -1520,7 +1553,9 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(
+            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results = get_or_create_internvl_results(
+                cache_path=results_cache_path,
                 requests_data=requests_data,
                 fov_radius=fov_radius,
                 # save_images=False,
