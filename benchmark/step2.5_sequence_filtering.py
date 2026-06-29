@@ -22,7 +22,7 @@ Note: Scene filtering and duration filtering have been removed.
       Use step1.5 for those filters if needed.
 """
 
-import os
+from pathlib import Path
 import ast
 import cv2
 import imageio
@@ -52,20 +52,18 @@ def merge_all_metadata(dataset, base_data_path):
         dataset: Dataset name (egtea, ego4d, egoexo, holoassist)
         base_data_path: Base path containing video subdirectories
     """
-    import glob
-
     print(f"Collecting metadata files from: {base_data_path}")
 
     # Find all fixation_merged_filtered_v2.csv files
-    pattern = os.path.join(base_data_path, "*", "*_fixation_merged_filtered_v2.csv")
-    csv_files = sorted(glob.glob(pattern))
+    pattern = Path(base_data_path) / "*" / "*_fixation_merged_filtered_v2.csv"
+    csv_files = sorted(Path(base_data_path).glob("*/*_fixation_merged_filtered_v2.csv"))
 
     if not csv_files:
         print(f"⚠️  No metadata files found matching pattern: {pattern}")
         print(f"   Looking for alternative file pattern...")
         # Try alternative pattern
-        pattern = os.path.join(base_data_path, "*", "*_fixation_with_internvl_v2_scene.csv")
-        csv_files = sorted(glob.glob(pattern))
+        pattern = Path(base_data_path) / "*" / "*_fixation_with_internvl_v2_scene.csv"
+        csv_files = sorted(Path(base_data_path).glob("*/*_fixation_with_internvl_v2_scene.csv"))
 
     if not csv_files:
         print(f"❌ No metadata files found to merge!")
@@ -81,7 +79,7 @@ def merge_all_metadata(dataset, base_data_path):
             if not df.empty:
                 # Extract video name from file path
                 # e.g., /path/to/OP01-R01-PastaSalad/OP01-R01-PastaSalad_fixation_merged_filtered_v2.csv
-                video_name = os.path.basename(os.path.dirname(csv_file))
+                video_name = Path(csv_file).parent.name
                 df['video_name'] = video_name
                 df['source_file'] = csv_file
                 all_dfs.append(df)
@@ -97,9 +95,9 @@ def merge_all_metadata(dataset, base_data_path):
     merged_df = pd.concat(all_dfs, ignore_index=True)
 
     # Save to final_data/{dataset}/total_metadata.csv
-    output_dir = os.path.join(PIPELINE_DIR, 'final_data', dataset)
-    os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, 'total_metadata.csv')
+    output_dir = Path(PIPELINE_DIR) / 'final_data' / dataset
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    output_file = Path(output_dir) / 'total_metadata.csv'
 
     merged_df.to_csv(output_file, index=False)
 
@@ -467,29 +465,29 @@ def extract_fixation_clips_to_gif(merged_df, video_name, video_path, output_dir,
     Extract fixation clips from video and save directly as GIFs
     """
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     # Use the gaze visualization video if available, otherwise use original video
     if dataset == 'egtea':
-        gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/egtea/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
+        gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/egtea/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
     elif dataset == 'ego4d':
-        gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/ego4d/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
+        gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/ego4d/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
     elif dataset == 'egoexo':
         if is_lab:
-            gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/egoexo/metadata/lab/{video_name}/{video_name}_gaze_visualization.mp4'
+            gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/egoexo/metadata/lab/{video_name}/{video_name}_gaze_visualization.mp4'
         else:
-            gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/egoexo/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
+            gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/egoexo/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
     elif dataset == 'kitchen':
-        gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/egoexo/metadata/kitchen_160/{video_name}/{video_name}_gaze_visualization.mp4'
+        gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/egoexo/metadata/kitchen_160/{video_name}/{video_name}_gaze_visualization.mp4'
     elif dataset == 'holoassist':
-        gaze_viz_path = f'{os.path.join(PIPELINE_DIR, "final_data")}/holoassist/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
+        gaze_viz_path = f'{Path(PIPELINE_DIR) / "final_data"}/holoassist/metadata/{video_name}/{video_name}_gaze_visualization.mp4'
     else:
         gaze_viz_path = None
 
-    if gaze_viz_path and os.path.exists(gaze_viz_path):
+    if gaze_viz_path and Path(gaze_viz_path).exists():
         video_file = gaze_viz_path
         print(f"Using gaze visualization video: {gaze_viz_path}")
-    elif os.path.exists(video_path):
+    elif Path(video_path).exists():
         video_file = video_path
         print(f"Gaze visualization not found, using original video: {video_path}")
     else:
@@ -559,7 +557,7 @@ def extract_fixation_clips_to_gif(merged_df, video_name, video_path, output_dir,
         # Create output filename
         safe_object_name = "".join(c for c in str(obj_name) if c.isalnum() or c in (' ', '-', '_')).rstrip()
         output_filename = f"episode_{idx:03d}_{safe_object_name}_{start_time:.1f}s-{end_time:.1f}s.gif"
-        output_path = os.path.join(output_dir, output_filename)
+        output_path = Path(output_dir) / output_filename
 
         # Calculate frame interval for target FPS
         frame_interval = max(1, int(video_fps / gif_fps))
@@ -715,12 +713,12 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
     # Check if required files exist
     # HoloAssist and EgoExoLearn have different video path structures
     if dataset == 'holoassist':
-        video_path = f'{video_base_path}{video_name}/Export_py/Video_pitchshift.mp4'
+        video_path = Path(video_base_path) / video_name / 'Export_py' / 'Video_pitchshift.mp4'
     elif dataset == 'egoexo':
-        video_path = f'{video_base_path}{video_name}.mp4'
+        video_path = Path(video_base_path) / f'{video_name}.mp4'
     else:
-        video_path = f'{video_base_path}{video_name}.mp4'
-    data_dir = f'{base_data_path}{video_name}/'
+        video_path = Path(video_base_path) / f'{video_name}.mp4'
+    data_dir = Path(base_data_path) / video_name
 
     required_files = [
         f'{video_name}_fixation_with_internvl_v2_scene.csv'  # Only need this file
@@ -729,7 +727,7 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
     # Check if all required files exist
     missing_files = []
     for file in required_files:
-        if not os.path.exists(os.path.join(data_dir, file)):
+        if not (Path(data_dir) / file).exists():
             missing_files.append(file)
 
     if missing_files:
@@ -737,7 +735,7 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
         return None
 
     # Load datasets
-    internvl = load_csv_safely(f'{data_dir}{video_name}_fixation_with_internvl_v2_scene.csv')
+    internvl = load_csv_safely(data_dir / f'{video_name}_fixation_with_internvl_v2_scene.csv')
 
     if internvl is None:
         print(f"Failed to load internvl dataset for {video_name}")
@@ -761,18 +759,18 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
     print(f"\nProcessing {video_name}...")
 
     # Check if output files already exist
-    output_data_dir = f'{output_base_path}{video_name}'
-    merged_output_path = f'{output_data_dir}/{video_name}_fixation_merged_filtered_v2.csv'
-    gif_output_dir = f'{output_data_dir}/gaze_video_chunk/fixation_filtered_v2'
+    output_data_dir = Path(output_base_path) / video_name
+    merged_output_path = output_data_dir / f'{video_name}_fixation_merged_filtered_v2.csv'
+    gif_output_dir = output_data_dir / 'gaze_video_chunk' / 'fixation_filtered_v2'
 
     # Check if both CSV and GIF files exist
-    csv_exists = os.path.exists(merged_output_path)
-    gif_dir_exists = os.path.exists(gif_output_dir) and os.path.isdir(gif_output_dir)
-    gif_files_exist = gif_dir_exists and len([f for f in os.listdir(gif_output_dir) if f.endswith('.gif')]) > 0
+    csv_exists = Path(merged_output_path).exists()
+    gif_dir_exists = Path(gif_output_dir).exists() and Path(gif_output_dir).is_dir()
+    gif_files_exist = gif_dir_exists and len([f for f in [p.name for p in Path(gif_output_dir).iterdir()] if f.endswith('.gif')]) > 0
 
     # Skip if both CSV and GIF files already exist
     if csv_exists and gif_files_exist and not no_viz:
-        gif_count = len([f for f in os.listdir(gif_output_dir) if f.endswith('.gif')])
+        gif_count = len([f for f in [p.name for p in Path(gif_output_dir).iterdir()] if f.endswith('.gif')])
         print(f"✓ Output files already exist:")
         print(f"  - CSV: {merged_output_path}")
         print(f"  - GIFs: {gif_output_dir} ({gif_count} files)")
@@ -833,7 +831,7 @@ def process_video_complete(video_data, output_base_path, no_viz=False, is_lab=Fa
         print(f"Skipping GIF generation (--no-viz)")
 
     # Step 5: Save processed data
-    os.makedirs(output_data_dir, exist_ok=True)
+    Path(output_data_dir).mkdir(parents=True, exist_ok=True)
 
     # Save merged episodes with _fixation_merged suffix
     merged_df.to_csv(merged_output_path, index=False)
@@ -857,13 +855,13 @@ def process_egtea(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for EGTEA
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egtea' / 'videos'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -885,8 +883,8 @@ def process_egtea(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -949,13 +947,13 @@ def process_egoexo(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for EgoExoLearn
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -977,8 +975,8 @@ def process_egoexo(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -1041,13 +1039,13 @@ def process_egoexo_lab(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for EgoExoLearn Lab
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -1069,8 +1067,8 @@ def process_egoexo_lab(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -1133,13 +1131,13 @@ def process_egoexo_kitchen(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for EgoExoLearn Kitchen
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -1161,8 +1159,8 @@ def process_egoexo_kitchen(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -1225,13 +1223,13 @@ def process_holoassist(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for HoloAssist
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'holoassist' / 'full'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -1253,8 +1251,8 @@ def process_holoassist(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -1317,13 +1315,13 @@ def process_ego4d(reverse=False, no_viz=False):
     print("=" * 60)
 
     # Base paths for Ego4D
-    BASE_DATA_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/'
-    VIDEO_BASE_PATH = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale') + '/'
-    OUTPUT_BASE_PATH = os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/'
+    BASE_DATA_PATH = Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata'
+    VIDEO_BASE_PATH = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'ego4d' / 'v2' / 'gaze_videos' / 'v2' / 'full_scale'
+    OUTPUT_BASE_PATH = Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata'
 
     # Get all video tasks
-    tasks = sorted([task for task in os.listdir(BASE_DATA_PATH)
-             if os.path.isdir(os.path.join(BASE_DATA_PATH, task))])
+    tasks = sorted([task for task in [p.name for p in Path(BASE_DATA_PATH).iterdir()]
+             if (Path(BASE_DATA_PATH) / task).is_dir()])
 
     # Reverse order if requested
     if reverse:
@@ -1345,8 +1343,8 @@ def process_ego4d(reverse=False, no_viz=False):
         progress_bar.set_description(f"Processing {video_name}")
 
         # Check if already processed
-        output_check = f'{OUTPUT_BASE_PATH}{video_name}/{video_name}_fixation_merged_filtered_v2.csv'
-        if os.path.exists(output_check):
+        output_check = Path(OUTPUT_BASE_PATH) / video_name / f'{video_name}_fixation_merged_filtered_v2.csv'
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"⏭️  SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({
@@ -1441,12 +1439,12 @@ def main():
 def get_merge_config(dataset):
     """Return the total_metadata merge target and source directory."""
     configs = {
-        'egtea': ('egtea', os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata')),
-        'ego4d': ('ego4d', os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata')),
-        'egoexo': ('egoexo', os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata')),
-        'egoexo-lab': ('egoexo', os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab')),
-        'kitchen': ('egoexo', os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160')),
-        'holoassist': ('holoassist', os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata')),
+        'egtea': ('egtea', Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata'),
+        'ego4d': ('ego4d', Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata'),
+        'egoexo': ('egoexo', Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata'),
+        'egoexo-lab': ('egoexo', Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab'),
+        'kitchen': ('egoexo', Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160'),
+        'holoassist': ('holoassist', Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata'),
     }
     return configs[dataset]
 

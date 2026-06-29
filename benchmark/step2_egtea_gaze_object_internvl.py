@@ -1,5 +1,5 @@
 import argparse
-import os
+from pathlib import Path
 import pickle
 import sys
 import time
@@ -84,14 +84,14 @@ def initialize_internvl_processor(model_name=DEFAULT_MODEL):
 
 def get_or_create_internvl_results(cache_path, **kwargs):
     """Load cached InternVL results or run inference and save them as pickle."""
-    if os.path.exists(cache_path):
+    if Path(cache_path).exists():
         print(f"[CACHE] Loading InternVL results from: {cache_path}")
         with open(cache_path, "rb") as f:
             return pickle.load(f)
 
     print(f"[CACHE] InternVL results cache not found; generating: {cache_path}")
     results = extract_objects_and_scene_from_video_clip_internvl_v2_sequential(**kwargs)
-    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+    Path(cache_path).parent.mkdir(parents=True, exist_ok=True)
     with open(cache_path, "wb") as f:
         pickle.dump(results, f)
     print(f"[CACHE] Saved InternVL results to: {cache_path}")
@@ -103,9 +103,9 @@ def process_egtea(reverse=False, start_pct=0):
     print(" Starting EGTEA Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos')
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egtea' / 'videos'
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     
     # Apply start_pct slicing
     if start_pct > 0:
@@ -138,18 +138,18 @@ def process_egtea(reverse=False, start_pct=0):
         print(f"{'='*60}")
         
         # Check if already processed (EGTEA)
-        output_csv_check = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
-        if os.path.exists(output_csv_check):
-            print(f"[SKIP]  SKIPPING: Already processed (found {os.path.basename(output_csv_check)})")
+        output_csv_check = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
+        if Path(output_csv_check).exists():
+            print(f"[SKIP]  SKIPPING: Already processed (found {Path(output_csv_check).name})")
             continue
         
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation filtered CSV not found: {csv_path}")
                 print(f"[SKIP]  SKIPPING: {video_name} (run step1.5 first)")
                 continue
@@ -182,7 +182,7 @@ def process_egtea(reverse=False, start_pct=0):
 
             
             # Get video path from metadata (EGTEA uses start_time_seconds, end_time_seconds)
-            video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            video_path = Path(video_base_dir) / f'{video_name}.mp4'
 
             # Process all rows with InternVL v2 (including two-stage analysis)
             print(" Starting InternVL-38B v2 two-stage object extraction for ALL fixations...")
@@ -250,7 +250,7 @@ def process_egtea(reverse=False, start_pct=0):
             # Disable GIF saving (for performance improvement)
             # video_output_dir = os.path.join(base_dir, video_name, 'internvl_object_clips')
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -299,7 +299,7 @@ def process_egtea(reverse=False, start_pct=0):
             print("=" * 60)
 
             # Save object pool to txt file
-            object_pool_txt_path = os.path.join(base_dir, video_name, f'{video_name}_object_pool.txt')
+            object_pool_txt_path = Path(base_dir) / video_name / f'{video_name}_object_pool.txt'
             with open(object_pool_txt_path, 'w', encoding='utf-8') as f:
                 f.write(f"OBJECT POOL - {video_name}\n")
                 f.write("=" * 50 + "\n\n")
@@ -337,12 +337,12 @@ def process_egtea(reverse=False, start_pct=0):
                             other_object_counter[object_identity] += 1
 
             # Save frequency analysis results
-            output_path = os.path.join(base_dir, video_name, f'{video_name}_object_frequency_analysis.txt')
+            output_path = Path(base_dir) / video_name / f'{video_name}_object_frequency_analysis.txt'
             save_frequency_analysis(other_object_counter, output_path, video_name)
             print(f"\n[OK] Frequency analysis results saved to: {output_path}")
 
             # Save the processed dataset with scene information
-            output_csv = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv, index=False)
             print(f"[OK] Processed dataset saved to: {output_csv}")
 
@@ -361,9 +361,9 @@ def process_ego4d(reverse=False, start_pct=0):
     print(" Starting Ego4D Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale')
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'ego4d' / 'v2' / 'gaze_videos' / 'v2' / 'full_scale'
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     
     # Apply start_pct slicing
     if start_pct > 0:
@@ -395,18 +395,18 @@ def process_ego4d(reverse=False, start_pct=0):
         print(f"{'='*60}")
         
         # Check if already processed (Ego4D)
-        output_csv_check = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
-        if os.path.exists(output_csv_check):
-            print(f"[SKIP]  SKIPPING: Already processed (found {os.path.basename(output_csv_check)})")
+        output_csv_check = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
+        if Path(output_csv_check).exists():
+            print(f"[SKIP]  SKIPPING: Already processed (found {Path(output_csv_check).name})")
             continue
         
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation filtered CSV not found: {csv_path}")
                 print(f"[SKIP]  SKIPPING: {video_name} (run step1.5 first)")
                 continue
@@ -438,7 +438,7 @@ def process_ego4d(reverse=False, start_pct=0):
                         continue
 
             # Get video path (Ego4D uses start_time, end_time - different from EGTEA)
-            video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            video_path = Path(video_base_dir) / f'{video_name}.mp4'
 
             # Process all rows with InternVL v2 (including two-stage analysis)
             print(" Starting InternVL-38B v2 two-stage object extraction for ALL fixations...")
@@ -504,7 +504,7 @@ def process_ego4d(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -553,7 +553,7 @@ def process_ego4d(reverse=False, start_pct=0):
             print("=" * 60)
 
             # Save object pool to txt file
-            object_pool_txt_path = os.path.join(base_dir, video_name, f'{video_name}_object_pool.txt')
+            object_pool_txt_path = Path(base_dir) / video_name / f'{video_name}_object_pool.txt'
             with open(object_pool_txt_path, 'w', encoding='utf-8') as f:
                 f.write(f"OBJECT POOL - {video_name}\n")
                 f.write("=" * 50 + "\n\n")
@@ -591,12 +591,12 @@ def process_ego4d(reverse=False, start_pct=0):
                             other_object_counter[object_identity] += 1
 
             # Save frequency analysis results
-            output_path = os.path.join(base_dir, video_name, f'{video_name}_object_frequency_analysis.txt')
+            output_path = Path(base_dir) / video_name / f'{video_name}_object_frequency_analysis.txt'
             save_frequency_analysis(other_object_counter, output_path, video_name)
             print(f"\n[OK] Frequency analysis results saved to: {output_path}")
 
             # Save the processed dataset with scene information
-            output_csv = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv, index=False)
             print(f"[OK] Processed dataset saved to: {output_csv}")
 
@@ -615,9 +615,9 @@ def process_egoexo(reverse=False, start_pct=0):
     print(" Starting EgoExoLearn Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full')
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     
     # Apply start_pct slicing
     if start_pct > 0:
@@ -649,18 +649,18 @@ def process_egoexo(reverse=False, start_pct=0):
         print(f"{'='*60}")
         
         # Check if already processed (EgoExoLearn)
-        output_csv_check = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
-        if os.path.exists(output_csv_check):
-            print(f"[SKIP]  SKIPPING: Already processed (found {os.path.basename(output_csv_check)})")
+        output_csv_check = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
+        if Path(output_csv_check).exists():
+            print(f"[SKIP]  SKIPPING: Already processed (found {Path(output_csv_check).name})")
             continue
         
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation filtered CSV not found: {csv_path}")
                 print(f"[SKIP]  SKIPPING: {video_name} (run step1.5 first)")
                 continue
@@ -692,7 +692,7 @@ def process_egoexo(reverse=False, start_pct=0):
                         continue
 
             # Get video path (EgoExoLearn uses start_time_seconds, end_time_seconds like EGTEA)
-            video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            video_path = Path(video_base_dir) / f'{video_name}.mp4'
 
             # Process all rows with InternVL v2 (including two-stage analysis)
             print(" Starting InternVL-38B v2 two-stage object extraction for ALL fixations...")
@@ -765,7 +765,7 @@ def process_egoexo(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -815,7 +815,7 @@ def process_egoexo(reverse=False, start_pct=0):
             print("=" * 60)
 
             # Save object pool to txt file
-            object_pool_txt_path = os.path.join(base_dir, video_name, f'{video_name}_object_pool.txt')
+            object_pool_txt_path = Path(base_dir) / video_name / f'{video_name}_object_pool.txt'
             with open(object_pool_txt_path, 'w', encoding='utf-8') as f:
                 f.write(f"OBJECT POOL - {video_name}\n")
                 f.write("=" * 50 + "\n\n")
@@ -853,12 +853,12 @@ def process_egoexo(reverse=False, start_pct=0):
                             other_object_counter[object_identity] += 1
 
             # Save frequency analysis results
-            output_path = os.path.join(base_dir, video_name, f'{video_name}_object_frequency_analysis.txt')
+            output_path = Path(base_dir) / video_name / f'{video_name}_object_frequency_analysis.txt'
             save_frequency_analysis(other_object_counter, output_path, video_name)
             print(f"\n[OK] Frequency analysis results saved to: {output_path}")
 
             # Save the processed dataset with scene information
-            output_csv = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv, index=False)
             print(f"[OK] Processed dataset saved to: {output_csv}")
 
@@ -877,14 +877,14 @@ def process_holoassist(reverse=False, start_pct=0):
     print(" Starting HoloAssist Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full')
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'holoassist' / 'full'
     
     # Load annotation data to filter sessions
     import json as json_module
-    annotation_file = os.path.join(video_base_dir, "data-annnotation-trainval-v1_1.json")
+    annotation_file = Path(video_base_dir) / "data-annnotation-trainval-v1_1.json"
     annotated_video_names = set()
-    if os.path.exists(annotation_file):
+    if Path(annotation_file).exists():
         print("Loading annotation data to filter sessions...")
         with open(annotation_file, 'r') as f:
             annotation_data_filter = json_module.load(f)
@@ -892,7 +892,7 @@ def process_holoassist(reverse=False, start_pct=0):
         print(f"Found {len(annotated_video_names)} videos with annotations")
     
     # Get all tasks (only those with annotations)
-    all_tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    all_tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     tasks = [task for task in all_tasks if task in annotated_video_names]
     skipped_no_annotation = len(all_tasks) - len(tasks)
     
@@ -930,18 +930,18 @@ def process_holoassist(reverse=False, start_pct=0):
         print(f"{'='*60}")
         
         # Check if already processed (HoloAssist)
-        output_csv_check = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
-        if os.path.exists(output_csv_check):
-            print(f"[SKIP]  SKIPPING: Already processed (found {os.path.basename(output_csv_check)})")
+        output_csv_check = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
+        if Path(output_csv_check).exists():
+            print(f"[SKIP]  SKIPPING: Already processed (found {Path(output_csv_check).name})")
             continue
         
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation filtered CSV not found: {csv_path}")
                 print(f"[SKIP]  SKIPPING: {video_name} (run step1.5 first)")
                 continue
@@ -973,7 +973,7 @@ def process_holoassist(reverse=False, start_pct=0):
                         continue
 
             # Get video path (HoloAssist uses different structure)
-            video_path = os.path.join(video_base_dir, video_name, 'Export_py', 'Video_pitchshift.mp4')
+            video_path = Path(video_base_dir) / video_name / 'Export_py' / 'Video_pitchshift.mp4'
 
             # Process all rows with InternVL v2 (including two-stage analysis)
             print(" Starting InternVL-38B v2 two-stage object extraction for ALL fixations...")
@@ -1040,10 +1040,10 @@ def process_holoassist(reverse=False, start_pct=0):
             cap.release()
             
             # Read camera intrinsics from Intrinsics.txt to calculate HFOV
-            intrinsics_path = os.path.join(os.path.dirname(video_path), 'Video', 'Intrinsics.txt')
+            intrinsics_path = Path(video_path).parent / 'Video' / 'Intrinsics.txt'
             HFOV_deg = 90.0  # Default fallback
             
-            if os.path.exists(intrinsics_path):
+            if Path(intrinsics_path).exists():
                 try:
                     with open(intrinsics_path, 'r') as f:
                         intrinsic_data = f.readline().strip().split('\t')
@@ -1065,7 +1065,7 @@ def process_holoassist(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg:.1f} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -1114,7 +1114,7 @@ def process_holoassist(reverse=False, start_pct=0):
             print("=" * 60)
 
             # Save object pool to txt file
-            object_pool_txt_path = os.path.join(base_dir, video_name, f'{video_name}_object_pool.txt')
+            object_pool_txt_path = Path(base_dir) / video_name / f'{video_name}_object_pool.txt'
             with open(object_pool_txt_path, 'w', encoding='utf-8') as f:
                 f.write(f"OBJECT POOL - {video_name}\n")
                 f.write("=" * 50 + "\n\n")
@@ -1152,12 +1152,12 @@ def process_holoassist(reverse=False, start_pct=0):
                             other_object_counter[object_identity] += 1
 
             # Save frequency analysis results
-            output_path = os.path.join(base_dir, video_name, f'{video_name}_object_frequency_analysis.txt')
+            output_path = Path(base_dir) / video_name / f'{video_name}_object_frequency_analysis.txt'
             save_frequency_analysis(other_object_counter, output_path, video_name)
             print(f"\n[OK] Frequency analysis results saved to: {output_path}")
 
             # Save the processed dataset with scene information
-            output_csv = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv, index=False)
             print(f"[OK] Processed dataset saved to: {output_csv}")
 
@@ -1176,9 +1176,9 @@ def process_egoexo_lab(reverse=False, start_pct=0):
     print(" Starting EgoExoLearn Lab Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full')
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     
     # Apply start_pct slicing
     if start_pct > 0:
@@ -1210,18 +1210,18 @@ def process_egoexo_lab(reverse=False, start_pct=0):
         print(f"{'='*60}")
         
         # Check if already processed (EgoExoLearn Lab)
-        output_csv_check = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
-        if os.path.exists(output_csv_check):
-            print(f"[SKIP]  SKIPPING: Already processed (found {os.path.basename(output_csv_check)})")
+        output_csv_check = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
+        if Path(output_csv_check).exists():
+            print(f"[SKIP]  SKIPPING: Already processed (found {Path(output_csv_check).name})")
             continue
         
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation file not found: {csv_path}")
                 continue
             
@@ -1239,9 +1239,9 @@ def process_egoexo_lab(reverse=False, start_pct=0):
             print(f"Columns: {list(fixation_dataset.columns)[:10]}...")
             
             # Video path
-            video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            video_path = Path(video_base_dir) / f'{video_name}.mp4'
             
-            if not os.path.exists(video_path):
+            if not Path(video_path).exists():
                 print(f"[ERROR] Video file not found: {video_path}")
                 continue
             
@@ -1314,7 +1314,7 @@ def process_egoexo_lab(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -1358,14 +1358,14 @@ def process_egoexo_lab(reverse=False, start_pct=0):
                             object_pool.add(obj['object_identity'])
             
             # Save the updated dataset
-            output_dir = os.path.join(base_dir, video_name)
-            os.makedirs(output_dir, exist_ok=True)
+            output_dir = Path(base_dir) / video_name
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
             
-            output_csv_path = os.path.join(output_dir, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv_path = Path(output_dir) / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv_path, index=False)
             
             # Save object pool
-            object_pool_path = os.path.join(output_dir, f'{video_name}_object_pool.txt')
+            object_pool_path = Path(output_dir) / f'{video_name}_object_pool.txt'
             with open(object_pool_path, 'w') as f:
                 for obj in sorted(object_pool):
                     f.write(f"{obj}\n")
@@ -1399,9 +1399,9 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
     print(" Starting EgoExoLearn Kitchen Object Extraction with InternVL")
     print("=" * 60)
     
-    base_dir = os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160')
-    video_base_dir = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full')
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    base_dir = Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160'
+    video_base_dir = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full'
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     
     # Apply start_pct slicing
     if start_pct > 0:
@@ -1445,10 +1445,10 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
         try:
             # Try multiple approaches to read the fixation CSV file
             print(f"Loading fixation dataset...")
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_filtered.csv')
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_filtered.csv'
             
             # Check if file exists first
-            if not os.path.exists(csv_path):
+            if not Path(csv_path).exists():
                 print(f"[ERROR] Fixation filtered CSV not found: {csv_path}")
                 print(f"[SKIP]  SKIPPING: {video_name} (run step1.5 first)")
                 continue
@@ -1480,7 +1480,7 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
                         continue
 
             # Get video path
-            video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            video_path = Path(video_base_dir) / f'{video_name}.mp4'
 
             # Process all rows with InternVL v2 (including two-stage analysis)
             print(" Starting InternVL-38B v2 two-stage object extraction for ALL fixations...")
@@ -1553,7 +1553,7 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
             print(f"   Video resolution: {frame_width}px width, HFOV: {HFOV_deg} deg")
             print(f"   Using perifovea radius: {fov_radius} px (~{r_deg} deg)")
             
-            results_cache_path = os.path.join(base_dir, video_name, f'{video_name}_internvl_results.pkl')
+            results_cache_path = Path(base_dir) / video_name / f'{video_name}_internvl_results.pkl'
             results = get_or_create_internvl_results(
                 cache_path=results_cache_path,
                 requests_data=requests_data,
@@ -1604,7 +1604,7 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
             print("=" * 60)
 
             # Save object pool to txt file
-            object_pool_txt_path = os.path.join(base_dir, video_name, f'{video_name}_object_pool.txt')
+            object_pool_txt_path = Path(base_dir) / video_name / f'{video_name}_object_pool.txt'
             with open(object_pool_txt_path, 'w', encoding='utf-8') as f:
                 f.write(f"OBJECT POOL - {video_name}\n")
                 f.write("=" * 50 + "\n\n")
@@ -1642,12 +1642,12 @@ def process_egoexo_kitchen(reverse=False, start_pct=0):
                             other_object_counter[object_identity] += 1
 
             # Save frequency analysis results
-            output_path = os.path.join(base_dir, video_name, f'{video_name}_object_frequency_analysis.txt')
+            output_path = Path(base_dir) / video_name / f'{video_name}_object_frequency_analysis.txt'
             save_frequency_analysis(other_object_counter, output_path, video_name)
             print(f"\n[OK] Frequency analysis results saved to: {output_path}")
 
             # Save the processed dataset with scene information
-            output_csv = os.path.join(base_dir, video_name, f'{video_name}_fixation_with_internvl_v2_scene.csv')
+            output_csv = Path(base_dir) / video_name / f'{video_name}_fixation_with_internvl_v2_scene.csv'
             fixation_dataset_with_scene.to_csv(output_csv, index=False)
             print(f"[OK] Processed dataset saved to: {output_csv}")
 

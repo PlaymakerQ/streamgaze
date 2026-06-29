@@ -4,7 +4,7 @@ Present Object Attribute Task Filtering
 Complete implementation with Qwen3VL verification
 """
 
-import os
+from pathlib import Path
 import base64
 import cv2
 from tqdm import tqdm
@@ -31,7 +31,7 @@ CONFUSING_TEXTURE_PAIRS = [
 
 def extract_frames_from_video(video_path, start_sec, end_sec, num_frames=8):
     """Extract evenly spaced frames from video segment"""
-    if not os.path.exists(video_path):
+    if not Path(video_path).exists():
         return None
     
     try:

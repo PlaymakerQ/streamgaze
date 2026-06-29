@@ -4,7 +4,6 @@ Generate HTML files for human annotation of QA tasks
 """
 
 import json
-import os
 import random
 from pathlib import Path
 
@@ -502,13 +501,13 @@ def generate_past_html(sample_size=50):
         "egtea_past_unviewed_tasks.json"
     ]
     
-    qa_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'final_data', 'egtea', 'qa', 'final')
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'qa_html', 'past')
+    qa_dir = Path(__file__).resolve().parent.parent / 'final_data' / 'egtea' / 'qa' / 'final'
+    output_dir = Path(__file__).resolve().parent.parent / 'qa_html' / 'past'
     
     for task_file in past_tasks:
         task_name = task_file.replace("egtea_", "").replace("_tasks.json", "")
-        input_path = os.path.join(qa_dir, task_file)
-        output_path = os.path.join(output_dir, f"{task_name}.html")
+        input_path = Path(qa_dir) / task_file
+        output_path = Path(output_dir) / f"{task_name}.html"
         
         print(f"Generating HTML for {task_name}...")
         

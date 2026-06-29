@@ -38,7 +38,7 @@ PIPELINE_DIR = Const.processed_data_root
 import pandas as pd
 import nncore
 import json
-import os
+from pathlib import Path
 from datetime import datetime
 # ours
 from qa_generation.past import (
@@ -422,28 +422,28 @@ if __name__ == "__main__":
     # Dataset-specific default configurations
     default_configs = {
         'egtea': {
-            'metadata_file': os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'total_metadata.csv'),
-            'video_base_dir': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos'),
-            'save_path': os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'qa_raw'),
-            'action_file': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'raw_annotations', 'action_labels.csv')
+            'metadata_file': Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'total_metadata.csv',
+            'video_base_dir': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egtea' / 'videos',
+            'save_path': Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'qa_raw',
+            'action_file': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egtea' / 'raw_annotations' / 'action_labels.csv'
         },
         'ego4d': {
-            'metadata_file': os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'total_metadata.csv'),
-            'video_base_dir': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale'),
-            'save_path': os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'qa_raw'),
+            'metadata_file': Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'total_metadata.csv',
+            'video_base_dir': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'ego4d' / 'v2' / 'gaze_videos' / 'v2' / 'full_scale',
+            'save_path': Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'qa_raw',
             'action_file': None
         },
         'egoexo': {
-            'metadata_file': os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'total_metadata.csv'),
-            'video_base_dir': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full'),
-            'save_path': os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'qa_raw'),
-            'action_file': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'annotations')  # Directory for per-video JSON files
+            'metadata_file': Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'total_metadata.csv',
+            'video_base_dir': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full',
+            'save_path': Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'qa_raw',
+            'action_file': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'annotations'  # Directory for per-video JSON files
         },
         'holoassist': {
-            'metadata_file': os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'total_metadata.csv'),
-            'video_base_dir': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full'),
-            'save_path': os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'qa_raw'),
-            'action_file': os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full', 'data-annnotation-trainval-v1_1.json')
+            'metadata_file': Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'total_metadata.csv',
+            'video_base_dir': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'holoassist' / 'full',
+            'save_path': Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'qa_raw',
+            'action_file': Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'holoassist' / 'full' / 'data-annnotation-trainval-v1_1.json'
         }
     }
     
@@ -452,12 +452,12 @@ if __name__ == "__main__":
     
     # Use human-verified metadata if flag is set
     if args.use_human_verified:
-        human_verified_path = os.path.join(Const.data_root, 'metadata', f'{args.dataset}.csv')
+        human_verified_path = Path(Const.data_root) / 'metadata' / f'{args.dataset}.csv'
         print(f"[INFO] Using human-verified metadata: {human_verified_path}")
         metadata_file = human_verified_path
     else:
         # Use auto-generated metadata from Step 2.5
-        auto_metadata_path = os.path.join(PIPELINE_DIR, 'final_data', args.dataset, 'total_metadata.csv')
+        auto_metadata_path = Path(PIPELINE_DIR) / 'final_data' / args.dataset / 'total_metadata.csv'
         metadata_file = args.metadata_file if args.metadata_file else auto_metadata_path
     
     video_base_dir = args.video_base_dir if args.video_base_dir else config['video_base_dir']
@@ -480,7 +480,7 @@ if __name__ == "__main__":
     
     # Load unified metadata file
     print(f"Loading unified metadata from: {metadata_file}")
-    if not os.path.exists(metadata_file):
+    if not Path(metadata_file).exists():
         raise FileNotFoundError(f"Metadata file not found: {metadata_file}")
     
     all_fixation_data = pd.read_csv(metadata_file,
@@ -512,14 +512,14 @@ if __name__ == "__main__":
         print(f"[INFO] Starting from {args.start_pct}% position (index {start_idx}/{len(tasks) + start_idx})")
     
     # Create save directory if it doesn't exist
-    os.makedirs(save_path, exist_ok=True)
+    Path(save_path).mkdir(parents=True, exist_ok=True)
     
     # Load action labels (once for all videos)
     all_action_labels = None
     holoassist_annotations = None
     egoexo_annotation_dir = None
     
-    if args.dataset == 'egtea' and action_file and os.path.exists(action_file):
+    if args.dataset == 'egtea' and action_file and Path(action_file).exists():
         print(f"Loading action labels from: {action_file}")
         all_action_labels = pd.read_csv(action_file,
                                         sep=';',
@@ -531,11 +531,11 @@ if __name__ == "__main__":
         all_action_labels['start_time_sec'] = all_action_labels['Starting Time (ms)'] / 1000.0
         all_action_labels['end_time_sec'] = all_action_labels['Ending Time (ms)'] / 1000.0
         print(f"[OK] Loaded {len(all_action_labels)} action labels")
-    elif args.dataset == 'egoexo' and action_file and os.path.exists(action_file):
+    elif args.dataset == 'egoexo' and action_file and Path(action_file).exists():
         print(f"EgoExo annotation directory: {action_file}")
         egoexo_annotation_dir = action_file
         print(f"[OK] Will load per-video JSON annotations from {egoexo_annotation_dir}")
-    elif args.dataset == 'holoassist' and action_file and os.path.exists(action_file):
+    elif args.dataset == 'holoassist' and action_file and Path(action_file).exists():
         print(f"Loading HoloAssist annotations from: {action_file}")
         with open(action_file, 'r') as f:
             holoassist_annotations = json.load(f)
@@ -558,7 +558,7 @@ if __name__ == "__main__":
     # Load checkpoint if exists
     checkpoint_file = f"{save_path}/{args.dataset}_checkpoint.json"
     processed_videos = set()
-    if os.path.exists(checkpoint_file):
+    if Path(checkpoint_file).exists():
         print(f"[INFO] Loading checkpoint from {checkpoint_file}")
         checkpoint = nncore.load(checkpoint_file)
         processed_videos = set(checkpoint.get('processed_videos', []))
@@ -597,24 +597,24 @@ if __name__ == "__main__":
         
         if args.dataset == 'egtea':
             # EGTEA uses .avi format
-            video_path = os.path.join(video_base_dir, f'{video_name}.avi')
+            video_path = Path(video_base_dir) / f'{video_name}.avi'
             # Fallback to .mp4 if .avi doesn't exist
-            if not os.path.exists(video_path):
-                video_path = os.path.join(video_base_dir, f'{video_name}.mp4')
+            if not Path(video_path).exists():
+                video_path = Path(video_base_dir) / f'{video_name}.mp4'
         elif args.dataset == 'ego4d':
             # Extract UUID from CSV filename: 'uuid_fixation_merged_filtered_v2.csv' -> 'uuid'
             video_id = video_name.split('_fixation_')[0] if '_fixation_' in video_name else video_name.replace('.csv', '')
-            video_path = os.path.join(video_base_dir, f'{video_id}.mp4')
+            video_path = Path(video_base_dir) / f'{video_id}.mp4'
         elif args.dataset == 'egoexo':
             # EgoExo format: Extract UUID from CSV filename like ego4d
             video_id = video_name.split('_fixation_')[0] if '_fixation_' in video_name else video_name.replace('.csv', '')
-            video_path = os.path.join(video_base_dir, f'{video_id}.mp4')
+            video_path = Path(video_base_dir) / f'{video_id}.mp4'
         elif args.dataset == 'holoassist':
             # HoloAssist video structure: video_name/Export_py/Video_pitchshift.mp4
-            video_path = os.path.join(video_base_dir, video_name, 'Export_py', 'Video_pitchshift.mp4')
+            video_path = Path(video_base_dir) / video_name / 'Export_py' / 'Video_pitchshift.mp4'
         
         # Check if video path exists
-        if video_path is None or not os.path.exists(video_path):
+        if video_path is None or not Path(video_path).exists():
             print(f"[ERROR] Video file not found: {video_path}")
             print(f"[SKIP]  Skipping video {video_name}...")
             continue
@@ -647,8 +647,8 @@ if __name__ == "__main__":
             print(f"Found {len(video_actions)} actions for {video_name}")
         elif args.dataset == 'egoexo' and egoexo_annotation_dir is not None:
             # Load per-video JSON annotation file
-            annotation_path = os.path.join(egoexo_annotation_dir, f"{video_name}.json")
-            if os.path.exists(annotation_path):
+            annotation_path = Path(egoexo_annotation_dir) / f"{video_name}.json"
+            if Path(annotation_path).exists():
                 try:
                     with open(annotation_path, 'r') as f:
                         action_data = json.load(f)
@@ -917,8 +917,8 @@ if __name__ == "__main__":
     nncore.dump(summary, f"{save_path}/task_summary.json", indent=2)
     
     # Remove checkpoint file after successful completion
-    if os.path.exists(checkpoint_file):
-        os.remove(checkpoint_file)
+    if Path(checkpoint_file).exists():
+        Path(checkpoint_file).unlink()
         print(f"[OK] Checkpoint file removed: {checkpoint_file}")
     
     print(f"\n{'='*60}")

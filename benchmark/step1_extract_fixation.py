@@ -5,12 +5,10 @@ Uses functions from the preprocess module for better code organization
 """
 
 import pandas as pd
-import os
-import glob
 import argparse
 import json
 from pathlib import Path
-
+from funcs.path_funcs import build_output_dir
 # Import functions from preprocess module
 from preprocess import (
     process_single_video,
@@ -46,15 +44,15 @@ def print_visualization_mode(viz_only=False, skip_viz=False):
 def should_skip_video(video_name, output_check, viz_check, viz_only=False):
     """Return True when existing outputs mean the video should be skipped."""
     if viz_only:
-        if os.path.exists(viz_check):
+        if Path(viz_check).exists():
             print(f"[SKIP] {video_name}: visualization already exists")
             return True
-        if not os.path.exists(output_check):
+        if not Path(output_check).exists():
             print(f"[SKIP] {video_name}: fixation data not found")
             return True
         return False
 
-    if os.path.exists(output_check) and os.path.exists(viz_check):
+    if Path(output_check).exists() and Path(viz_check).exists():
         print(f"[SKIP] {video_name}: already processed")
         return True
     return False
@@ -81,18 +79,15 @@ def process_egtea(skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egtea")
-    video_dir = os.path.join(base_dir, "videos")
-    gaze_dir = os.path.join(base_dir, "gaze_data")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "egtea", "metadata")
-    
-    # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egtea"
+    video_dir = Path(base_dir) / "videos"
+    gaze_dir = Path(base_dir) / "gaze_data"
+    output_dir = build_output_dir(data_name="etgea")
     
     # Load action data 
     action_data = None
-    action_file_path = os.path.join(base_dir, "raw_annotations", "action_labels.csv")
-    if os.path.exists(action_file_path):
+    action_file_path = Path(base_dir) / "raw_annotations" / "action_labels.csv"
+    if Path(action_file_path).exists():
         print("Loading action data...")
         action_data = pd.read_csv(action_file_path, sep=';')
         print(f"Action data loaded: {action_data.shape}")
@@ -100,24 +95,24 @@ def process_egtea(skip_viz=False, viz_only=False):
         print("Action data not found, proceeding without action information")
     
     # Find all video files
-    video_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+    video_files = sorted(Path(video_dir).glob("*.mp4"))
     print(f"\nFound {len(video_files)} video files")
     
     # Process each video
     for i, video_path in enumerate(video_files, 1):
         video_name = Path(video_path).stem
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.txt")
+        gaze_path = Path(gaze_dir) / f"{video_name}.txt"
         
         print(f"\n[{i}/{len(video_files)}] Processing {video_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / video_name / f"{video_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / video_name / f"{video_name}_gaze_visualization.mp4"
         
         if should_skip_video(video_name, output_check, viz_check, viz_only):
             continue
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
@@ -142,37 +137,37 @@ def process_ego4d(fps=30, skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "ego4d", "v2")
-    video_dir = os.path.join(base_dir, "gaze_videos", "v2", "full_scale")
-    gaze_dir = os.path.join(base_dir, "gaze")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "ego4d", "metadata")
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "ego4d" / "v2"
+    video_dir = Path(base_dir) / "gaze_videos" / "v2" / "full_scale"
+    gaze_dir = Path(base_dir) / "gaze"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / "ego4d" / "metadata"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Ego4D doesn't have action data by default
     action_data = None
     print("Note: Ego4D processing without action data")
     
     # Find all video files
-    video_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+    video_files = sorted(Path(video_dir).glob("*.mp4"))
     print(f"\nFound {len(video_files)} video files")
     
     # Process each video
     for i, video_path in enumerate(video_files, 1):
         video_name = Path(video_path).stem
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.csv")
+        gaze_path = Path(gaze_dir) / f"{video_name}.csv"
         
         print(f"\n[{i}/{len(video_files)}] Processing {video_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / video_name / f"{video_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / video_name / f"{video_name}_gaze_visualization.mp4"
         
         if should_skip_video(video_name, output_check, viz_check, viz_only):
             continue
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
@@ -199,41 +194,41 @@ def process_egoexo(fps=30, skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egoexolearn" / "full"
     video_dir = base_dir  # Videos are in the root directory
-    gaze_dir = os.path.join(base_dir, "gazes_30fps_npy")
-    annotation_dir = os.path.join(base_dir, "annotation")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "egoexo", "metadata")
+    gaze_dir = Path(base_dir) / "gazes_30fps_npy"
+    annotation_dir = Path(base_dir) / "annotation"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / "egoexo" / "metadata"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Find all video files
-    video_files = sorted(glob.glob(os.path.join(video_dir, "*.mp4")))
+    video_files = sorted(Path(video_dir).glob("*.mp4"))
     print(f"\nFound {len(video_files)} video files")
     
     # Process each video
     for i, video_path in enumerate(video_files, 1):
         video_name = Path(video_path).stem
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.npy")
-        annotation_path = os.path.join(annotation_dir, f"{video_name}.json")
+        gaze_path = Path(gaze_dir) / f"{video_name}.npy"
+        annotation_path = Path(annotation_dir) / f"{video_name}.json"
         
         print(f"\n[{i}/{len(video_files)}] Processing {video_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / video_name / f"{video_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / video_name / f"{video_name}_gaze_visualization.mp4"
         
         if should_skip_video(video_name, output_check, viz_check, viz_only):
             continue
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"[SKIP] {video_name}: gaze file not found")
             continue
         
         # Load action data (annotations) for this video
         action_data = None
-        if os.path.exists(annotation_path):
+        if Path(annotation_path).exists():
             try:
                 with open(annotation_path, 'r') as f:
                     action_data = json.load(f)
@@ -267,14 +262,14 @@ def process_egoexo_lab(fps=30, skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egoexolearn" / "full"
     video_dir = base_dir  # Videos are in the root directory
-    gaze_dir = os.path.join(base_dir, "gazes_30fps_npy")
-    fine_annotation_file = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "annotations", "fine_annotation_trainvaltest_en.csv")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "egoexo", "metadata", "lab")
+    gaze_dir = Path(base_dir) / "gazes_30fps_npy"
+    fine_annotation_file = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egoexolearn" / "annotations" / "fine_annotation_trainvaltest_en.csv"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / "egoexo" / "metadata" / "lab"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Load fine-grained annotation data
     print("Loading fine-grained annotations...")
@@ -294,25 +289,25 @@ def process_egoexo_lab(fps=30, skip_viz=False, viz_only=False):
     skipped = 0
     
     for i, video_name in enumerate(sorted(lab_video_ids), 1):
-        video_path = os.path.join(video_dir, f"{video_name}.mp4")
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.npy")
+        video_path = Path(video_dir) / f"{video_name}.mp4"
+        gaze_path = Path(gaze_dir) / f"{video_name}.npy"
         
         print(f"\n[{i}/{len(lab_video_ids)}] Processing {video_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / video_name / f"{video_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / video_name / f"{video_name}_gaze_visualization.mp4"
         
         if should_skip_video(video_name, output_check, viz_check, viz_only):
             skipped += 1
             continue
         
-        if not os.path.exists(video_path):
+        if not Path(video_path).exists():
             print(f"[SKIP] {video_name}: video file not found: {video_path}")
             skipped += 1
             continue
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"[SKIP] {video_name}: gaze file not found: {gaze_path}")
             skipped += 1
             continue
@@ -341,18 +336,18 @@ def process_egoexo_kitchen(fps=30, skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "full")
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egoexolearn" / "full"
     video_dir = base_dir  # Videos are in the root directory
-    gaze_dir = os.path.join(base_dir, "gazes_30fps_npy")
-    fine_annotation_file = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "egoexolearn", "annotations", "fine_annotation_trainvaltest_en.csv")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "egoexo", "metadata", "kitchen_160")
+    gaze_dir = Path(base_dir) / "gazes_30fps_npy"
+    fine_annotation_file = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "egoexolearn" / "annotations" / "fine_annotation_trainvaltest_en.csv"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / "egoexo" / "metadata" / "kitchen_160"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Get video IDs from kitchen_160 directory (only process existing ones)
     print("Scanning kitchen_160 directory for existing videos...")
-    all_dirs = [d for d in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, d))]
+    all_dirs = [d for d in [p.name for p in Path(output_dir).iterdir()] if (Path(output_dir) / d).is_dir()]
     print(f"Found {len(all_dirs)} directories in kitchen_160")
     
     # Load fine-grained annotation data
@@ -373,25 +368,25 @@ def process_egoexo_kitchen(fps=30, skip_viz=False, viz_only=False):
     skipped = 0
     
     for i, video_name in enumerate(kitchen_video_ids, 1):
-        video_path = os.path.join(video_dir, f"{video_name}.mp4")
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.npy")
+        video_path = Path(video_dir) / f"{video_name}.mp4"
+        gaze_path = Path(gaze_dir) / f"{video_name}.npy"
         
         print(f"\n[{i}/{len(kitchen_video_ids)}] Processing {video_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, video_name, f"{video_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, video_name, f"{video_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / video_name / f"{video_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / video_name / f"{video_name}_gaze_visualization.mp4"
         
         if should_skip_video(video_name, output_check, viz_check, viz_only):
             skipped += 1
             continue
         
-        if not os.path.exists(video_path):
+        if not Path(video_path).exists():
             print(f"[SKIP] {video_name}: video file not found: {video_path}")
             skipped += 1
             continue
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"[SKIP] {video_name}: gaze file not found: {gaze_path}")
             skipped += 1
             continue
@@ -420,17 +415,17 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
     print_visualization_mode(viz_only, skip_viz)
     
     # Path configuration
-    base_dir = os.path.join(PIPELINE_DIR, "raw_gaze_dataset", "holoassist", "full")
-    output_dir = os.path.join(PIPELINE_DIR, "final_data", "holoassist", "metadata")
-    annotation_file = os.path.join(base_dir, "data-annnotation-trainval-v1_1.json")
+    base_dir = Path(PIPELINE_DIR) / "raw_gaze_dataset" / "holoassist" / "full"
+    output_dir = Path(PIPELINE_DIR) / "final_data" / "holoassist" / "metadata"
+    annotation_file = Path(base_dir) / "data-annnotation-trainval-v1_1.json"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Load annotation data
     annotation_data = None
     annotated_video_names = set()
-    if os.path.exists(annotation_file):
+    if Path(annotation_file).exists():
         print("Loading annotation data...")
         with open(annotation_file, 'r') as f:
             annotation_data = json.load(f)
@@ -480,8 +475,8 @@ def process_holoassist(fps=24.46, skip_viz=False, viz_only=False):
         print(f"\n[{i}/{len(valid_sessions)}] Processing {session_name}...")
         
         # Check if already processed
-        output_check = os.path.join(output_dir, session_name, f"{session_name}_fixation_dataset.csv")
-        viz_check = os.path.join(output_dir, session_name, f"{session_name}_gaze_visualization.mp4")
+        output_check = Path(output_dir) / session_name / f"{session_name}_fixation_dataset.csv"
+        viz_check = Path(output_dir) / session_name / f"{session_name}_gaze_visualization.mp4"
         
         if should_skip_video(session_name, output_check, viz_check, viz_only):
             continue

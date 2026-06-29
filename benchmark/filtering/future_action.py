@@ -8,7 +8,7 @@ Filters:
 4. Polish truncated options with Qwen3VL
 """
 
-import os
+from pathlib import Path
 import re
 from tqdm import tqdm
 from .utils import parse_time_to_seconds, seconds_to_time_str, get_qwen_model, get_qwen_processor
@@ -130,7 +130,7 @@ def filter_future_action(data, log_file=None):
     
     for item in tqdm(data, desc="Filtering future_action"):
         for q in item['questions']:
-            video_name = os.path.basename(item['video'])
+            video_name = Path(item['video']).name
             
             timestamp_sec = parse_time_to_seconds(q['time_stamp'])
             action_time_sec = parse_time_to_seconds(q['actual_action_time'])

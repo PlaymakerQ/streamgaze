@@ -4,7 +4,6 @@ Batch process all EGTEA videos to extract clips and generate multiple HTML files
 Uses the v2 template with corrected button logic and missing object addition feature
 """
 
-import os
 import pandas as pd
 import subprocess
 import json
@@ -14,9 +13,9 @@ import math
 import base64
 
 # Configuration
-METADATA_BASE_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'final_data', 'egtea', 'metadata')
-WORK_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'html_output')
-CLIPS_DIR = os.path.join(WORK_DIR, "clips")
+METADATA_BASE_DIR = Path(__file__).resolve().parent.parent / 'final_data' / 'egtea' / 'metadata'
+WORK_DIR = Path(__file__).resolve().parent.parent / 'html_output'
+CLIPS_DIR = Path(WORK_DIR) / "clips"
 EPISODES_PER_HTML = 10  # Number of episodes per HTML file
 
 def read_file_content(file_path):
@@ -31,14 +30,14 @@ def read_file_content(file_path):
 def get_all_video_sources():
     """Get list of all video source directories"""
     video_sources = []
-    
-    for item in sorted(os.listdir(METADATA_BASE_DIR)):
-        item_path = os.path.join(METADATA_BASE_DIR, item)
-        if os.path.isdir(item_path):
-            csv_file = os.path.join(item_path, f"{item}_fixation_merged_filtered_v2.csv")
-            video_file = os.path.join(item_path, f"{item}_gaze_visualization.mp4")
-            
-            if os.path.exists(csv_file) and os.path.exists(video_file):
+
+    for item in sorted([p.name for p in Path(METADATA_BASE_DIR).iterdir()]):
+        item_path = Path(METADATA_BASE_DIR) / item
+        if Path(item_path).is_dir():
+            csv_file = Path(item_path) / f"{item}_fixation_merged_filtered_v2.csv"
+            video_file = Path(item_path) / f"{item}_gaze_visualization.mp4"
+
+            if Path(csv_file).exists() and Path(video_file).exists():
                 video_sources.append({
                     'name': item,
                     'csv_path': csv_file,
@@ -46,7 +45,7 @@ def get_all_video_sources():
                 })
             else:
                 print(f"⚠️  Skipping {item}: Missing required files")
-    
+
     return video_sources
 
 def extract_clips_for_video(video_info, start_episode_id):
@@ -54,31 +53,31 @@ def extract_clips_for_video(video_info, start_episode_id):
     name = video_info['name']
     csv_path = video_info['csv_path']
     video_path = video_info['video_path']
-    
+
     print(f"\n📹 Processing: {name}")
-    
+
     try:
         df = pd.read_csv(csv_path)
         print(f"   Found {len(df)} episodes")
     except Exception as e:
         print(f"   ✗ Error reading CSV: {e}")
         return [], start_episode_id
-    
-    os.makedirs(CLIPS_DIR, exist_ok=True)
-    
+
+    Path(CLIPS_DIR).mkdir(parents=True, exist_ok=True)
+
     episodes_data = []
     current_episode_id = start_episode_id
-    
+
     for idx, row in df.iterrows():
         try:
             start_time = float(row['episode_start_time'])
             end_time = float(row['episode_end_time'])
             duration = end_time - start_time
-            
+
             clip_filename = f"{name}_episode_{idx:02d}.mp4"
-            clip_path = os.path.join(CLIPS_DIR, clip_filename)
-            
-            if os.path.exists(clip_path):
+            clip_path = Path(CLIPS_DIR) / clip_filename
+
+            if Path(clip_path).exists():
                 print(f"   ✓ Clip {clip_filename} exists")
             else:
                 cmd = [
@@ -95,15 +94,15 @@ def extract_clips_for_video(video_info, start_episode_id):
                     '-y',
                     clip_path
                 ]
-                
+
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                
+
                 if result.returncode == 0:
                     print(f"   ✓ Created {clip_filename}")
                 else:
                     print(f"   ✗ Error creating {clip_filename}")
                     continue
-            
+
             def safe_json_parse(field_value):
                 if pd.isna(field_value) or field_value == '':
                     return None
@@ -112,7 +111,7 @@ def extract_clips_for_video(video_info, start_episode_id):
                     return ast.literal_eval(str(field_value))
                 except:
                     return None
-            
+
             episode = {
                 'id': current_episode_id,
                 'video_source': name,
@@ -129,39 +128,39 @@ def extract_clips_for_video(video_info, start_episode_id):
                 'other_objects_outside_fov': safe_json_parse(row['other_objects_outside_fov']) or [],
                 'captions': safe_json_parse(row['captions']) or []
             }
-            
+
             episodes_data.append(episode)
             current_episode_id += 1
-            
+
         except Exception as e:
             print(f"   ✗ Error processing row {idx}: {e}")
             continue
-    
+
     return episodes_data, current_episode_id
 
 def generate_single_html_v2(episodes, batch_num, total_batches):
     """Generate a single HTML file for a batch of episodes using V2 format"""
-    
+
     # Read CSS (using existing styles.css)
-    css_path = os.path.join(WORK_DIR, "styles.css")
+    css_path = Path(WORK_DIR) / "styles.css"
     with open(css_path, 'r', encoding='utf-8') as f:
         css_content = f.read()
-    
+
     # Encode videos to base64
     video_data = {}
     for episode in episodes:
         clip_filename = episode['clip_filename']
-        clip_path = os.path.join(CLIPS_DIR, clip_filename)
-        
-        if os.path.exists(clip_path):
+        clip_path = Path(CLIPS_DIR) / clip_filename
+
+        if Path(clip_path).exists():
             with open(clip_path, 'rb') as f:
                 video_bytes = f.read()
                 video_data[clip_filename] = f"data:video/mp4;base64,{base64.b64encode(video_bytes).decode('utf-8')}"
-    
-    total_size_mb = sum(os.path.getsize(os.path.join(CLIPS_DIR, ep['clip_filename'])) 
-                       for ep in episodes if os.path.exists(os.path.join(CLIPS_DIR, ep['clip_filename']))) / (1024 * 1024)
+
+    total_size_mb = sum((Path(CLIPS_DIR) / ep['clip_filename']).stat().st_size
+                       for ep in episodes if (Path(CLIPS_DIR) / ep['clip_filename']).exists()) / (1024 * 1024)
     estimated_html_size_mb = total_size_mb * 1.33
-    
+
     # Generate HTML with V2 format
     html_content = f"""<!DOCTYPE html>
 <html lang="ko">
@@ -404,17 +403,17 @@ def generate_single_html_v2(episodes, batch_num, total_batches):
     display: inline-block;
 }}
     </style>
-    
+
     <!-- SheetJS library for Excel export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="standalone-info">
-            📦 Batch {batch_num} of {total_batches} - Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 
+            📦 Batch {batch_num} of {total_batches} - Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             | {len(video_data)} videos embedded | ~{estimated_html_size_mb:.0f}MB total
         </div>
-        
+
         <header>
             <h1>Human Verification of Metadata</h1>
             <p>Batch {batch_num} of {total_batches} - {len(episodes)} episodes</p>
@@ -536,7 +535,7 @@ function initializeExclusionData() {{
             }};
         }}
     }});
-    
+
     loadExclusionData();
     updateExportStats();
 }}
@@ -569,23 +568,23 @@ function loadExclusionData() {{
 function toggleObjectExclusion(episodeId, type, index) {{
     const episodeExclusions = exclusionData.episodes[episodeId];
     if (!episodeExclusions) return;
-    
+
     let targetObj;
     if (type === 'representative') {{
         targetObj = episodeExclusions.representative;
     }} else {{
         targetObj = episodeExclusions[type][index];
     }}
-    
+
     if (targetObj) {{
         targetObj.excluded = !targetObj.excluded;
         targetObj.timestamp = new Date().toISOString();
-        
+
         if (!targetObj.excluded) {{
             targetObj.reason = "";
             targetObj.notes = "";
         }}
-        
+
         saveExclusionData();
         updateExportStats();
         displayEpisode(currentEpisodeIndex);
@@ -596,34 +595,34 @@ function toggleObjectExclusion(episodeId, type, index) {{
 function addMissingObject(episodeId, section) {{
     const nameInput = document.getElementById(`missing-name-${{section}}-${{episodeId}}`);
     const captionInput = document.getElementById(`missing-caption-${{section}}-${{episodeId}}`);
-    
+
     const name = nameInput.value.trim();
     const caption = captionInput.value.trim();
-    
+
     if (!name || !caption) {{
         alert('Please enter both object name and caption');
         return;
     }}
-    
+
     const episodeExclusions = exclusionData.episodes[episodeId];
     if (!episodeExclusions) return;
-    
+
     const missingKey = `missing${{section.charAt(0).toUpperCase() + section.slice(1)}}`;
     if (!episodeExclusions[missingKey]) {{
         episodeExclusions[missingKey] = [];
     }}
-    
+
     episodeExclusions[missingKey].push({{
         objectIdentity: name,
         detailedCaption: caption,
         timestamp: new Date().toISOString(),
         userAdded: true
     }});
-    
+
     // Clear inputs
     nameInput.value = '';
     captionInput.value = '';
-    
+
     // Save and refresh
     saveExclusionData();
     displayEpisode(currentEpisodeIndex);
@@ -634,12 +633,12 @@ function addMissingObject(episodeId, section) {{
 function removeMissingObject(episodeId, section, index) {{
     const episodeExclusions = exclusionData.episodes[episodeId];
     if (!episodeExclusions) return;
-    
+
     const missingKey = `missing${{section.charAt(0).toUpperCase() + section.slice(1)}}`;
     if (episodeExclusions[missingKey]) {{
         episodeExclusions[missingKey].splice(index, 1);
     }}
-    
+
     saveExclusionData();
     displayEpisode(currentEpisodeIndex);
     updateExportStats();
@@ -649,7 +648,7 @@ function removeMissingObject(episodeId, section, index) {{
 function getExclusionState(episodeId, type, index) {{
     const episodeExclusions = exclusionData.episodes[episodeId];
     if (!episodeExclusions) return {{ excluded: false, reason: "" }};
-    
+
     if (type === 'representative') {{
         return episodeExclusions.representative;
     }} else {{
@@ -661,22 +660,22 @@ function getExclusionState(episodeId, type, index) {{
 function updateExportStats() {{
     let totalObjects = 0;
     let excludedObjects = 0;
-    
+
     Object.values(exclusionData.episodes).forEach(episode => {{
         totalObjects++;
         if (episode.representative.excluded) excludedObjects++;
-        
+
         totalObjects += episode.cropped.length;
         excludedObjects += episode.cropped.filter(obj => obj.excluded).length;
-        
+
         totalObjects += episode.outside.length;
         excludedObjects += episode.outside.filter(obj => obj.excluded).length;
     }});
-    
+
     const inclusionRate = totalObjects > 0 ? ((totalObjects - excludedObjects) / totalObjects * 100).toFixed(1) : 0;
-    
+
     document.getElementById('exportStats').innerHTML = `
-        <strong>Quality Control Status:</strong> ${{excludedObjects}} objects excluded out of ${{totalObjects}} total 
+        <strong>Quality Control Status:</strong> ${{excludedObjects}} objects excluded out of ${{totalObjects}} total
         | Inclusion Rate: ${{inclusionRate}}%
     `;
 }}
@@ -688,24 +687,24 @@ function resetAllExclusions() {{
             episode.representative.excluded = false;
             episode.representative.reason = "";
             episode.representative.notes = "";
-            
+
             episode.cropped.forEach(obj => {{
                 obj.excluded = false;
                 obj.reason = "";
                 obj.notes = "";
             }});
-            
+
             episode.outside.forEach(obj => {{
                 obj.excluded = false;
                 obj.reason = "";
                 obj.notes = "";
             }});
-            
+
             episode.missingRepresentative = [];
             episode.missingCropped = [];
             episode.missingOutside = [];
         }});
-        
+
         saveExclusionData();
         updateExportStats();
         displayEpisode(currentEpisodeIndex);
@@ -716,16 +715,16 @@ function resetAllExclusions() {{
 // Generate CSV data
 function generateCSVData() {{
     const headers = [
-        'Episode_ID', 'Video_Source', 'Object_Type', 'Object_Index', 'Object_Identity', 
+        'Episode_ID', 'Video_Source', 'Object_Type', 'Object_Index', 'Object_Identity',
         'Object_Description', 'Excluded', 'User_Added', 'Timestamp', 'Episode_Start_Time',
         'Episode_End_Time', 'Episode_Duration', 'Fixation_IDs'
     ];
-    
+
     let csvContent = headers.join(',') + '\\n';
-    
+
     episodeData.forEach(episode => {{
         const episodeExclusions = exclusionData.episodes[episode.id] || {{}};
-        
+
         const repState = episodeExclusions.representative || {{}};
         const repObj = episode.representative_object || {{}};
         csvContent += [
@@ -743,7 +742,7 @@ function generateCSVData() {{
             episode.duration,
             `"${{episode.fixation_ids || ''}}"`
         ].join(',') + '\\n';
-        
+
         (episode.other_objects_in_cropped_area || []).forEach((obj, index) => {{
             const objState = (episodeExclusions.cropped || [])[index] || {{}};
             csvContent += [
@@ -762,7 +761,7 @@ function generateCSVData() {{
                 `"${{episode.fixation_ids || ''}}"`
             ].join(',') + '\\n';
         }});
-        
+
         (episode.other_objects_outside_fov || []).forEach((obj, index) => {{
             const objState = (episodeExclusions.outside || [])[index] || {{}};
             csvContent += [
@@ -781,7 +780,7 @@ function generateCSVData() {{
                 `"${{episode.fixation_ids || ''}}"`
             ].join(',') + '\\n';
         }});
-        
+
         // Missing objects (user added)
         (episodeExclusions.missingRepresentative || []).forEach((obj, index) => {{
             csvContent += [
@@ -800,7 +799,7 @@ function generateCSVData() {{
                 `"${{episode.fixation_ids || ''}}"`
             ].join(',') + '\\n';
         }});
-        
+
         (episodeExclusions.missingCropped || []).forEach((obj, index) => {{
             csvContent += [
                 episode.id,
@@ -818,7 +817,7 @@ function generateCSVData() {{
                 `"${{episode.fixation_ids || ''}}"`
             ].join(',') + '\\n';
         }});
-        
+
         (episodeExclusions.missingOutside || []).forEach((obj, index) => {{
             csvContent += [
                 episode.id,
@@ -837,7 +836,7 @@ function generateCSVData() {{
             ].join(',') + '\\n';
         }});
     }});
-    
+
     return csvContent;
 }}
 
@@ -847,7 +846,7 @@ function exportToCSV() {{
         const csvData = generateCSVData();
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         const filename = `egtea_batch_{batch_num}_v2_${{timestamp}}.csv`;
-        
+
         downloadFile(csvData, filename, 'text/csv');
         console.log('CSV export completed:', filename);
     }} catch (error) {{
@@ -863,20 +862,20 @@ function exportToExcel() {{
             alert('Excel export library not loaded. Please check your internet connection.');
             return;
         }}
-        
+
         const wb = XLSX.utils.book_new();
-        
+
         const mainData = generateExportData();
         const ws1 = XLSX.utils.json_to_sheet(mainData);
         XLSX.utils.book_append_sheet(wb, ws1, "Data");
-        
+
         const summaryData = generateSummaryData();
         const ws2 = XLSX.utils.json_to_sheet(summaryData);
         XLSX.utils.book_append_sheet(wb, ws2, "Summary");
-        
+
         const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
         const filename = `egtea_batch_{batch_num}_v2_${{timestamp}}.xlsx`;
-        
+
         XLSX.writeFile(wb, filename);
         console.log('Excel export completed:', filename);
     }} catch (error) {{
@@ -888,10 +887,10 @@ function exportToExcel() {{
 // Generate export data for Excel
 function generateExportData() {{
     const data = [];
-    
+
     episodeData.forEach(episode => {{
         const episodeExclusions = exclusionData.episodes[episode.id] || {{}};
-        
+
         const repState = episodeExclusions.representative || {{}};
         const repObj = episode.representative_object || {{}};
         data.push({{
@@ -909,7 +908,7 @@ function generateExportData() {{
             Episode_Duration: episode.duration,
             Fixation_IDs: episode.fixation_ids || ''
         }});
-        
+
         (episode.other_objects_in_cropped_area || []).forEach((obj, index) => {{
             const objState = (episodeExclusions.cropped || [])[index] || {{}};
             data.push({{
@@ -928,7 +927,7 @@ function generateExportData() {{
                 Fixation_IDs: episode.fixation_ids || ''
             }});
         }});
-        
+
         (episode.other_objects_outside_fov || []).forEach((obj, index) => {{
             const objState = (episodeExclusions.outside || [])[index] || {{}};
             data.push({{
@@ -947,7 +946,7 @@ function generateExportData() {{
                 Fixation_IDs: episode.fixation_ids || ''
             }});
         }});
-        
+
         // Missing objects
         (episodeExclusions.missingRepresentative || []).forEach((obj, index) => {{
             data.push({{
@@ -966,7 +965,7 @@ function generateExportData() {{
                 Fixation_IDs: episode.fixation_ids || ''
             }});
         }});
-        
+
         (episodeExclusions.missingCropped || []).forEach((obj, index) => {{
             data.push({{
                 Episode_ID: episode.id,
@@ -984,7 +983,7 @@ function generateExportData() {{
                 Fixation_IDs: episode.fixation_ids || ''
             }});
         }});
-        
+
         (episodeExclusions.missingOutside || []).forEach((obj, index) => {{
             data.push({{
                 Episode_ID: episode.id,
@@ -1003,33 +1002,33 @@ function generateExportData() {{
             }});
         }});
     }});
-    
+
     return data;
 }}
 
 // Generate summary data
 function generateSummaryData() {{
     const summary = [];
-    
+
     episodeData.forEach(episode => {{
         const episodeExclusions = exclusionData.episodes[episode.id] || {{}};
-        
+
         let totalObjects = 1;
         let excludedObjects = episodeExclusions.representative?.excluded ? 1 : 0;
         let addedObjects = 0;
-        
+
         totalObjects += (episode.other_objects_in_cropped_area || []).length;
         excludedObjects += (episodeExclusions.cropped || []).filter(obj => obj.excluded).length;
-        
+
         totalObjects += (episode.other_objects_outside_fov || []).length;
         excludedObjects += (episodeExclusions.outside || []).filter(obj => obj.excluded).length;
-        
+
         addedObjects += (episodeExclusions.missingRepresentative || []).length;
         addedObjects += (episodeExclusions.missingCropped || []).length;
         addedObjects += (episodeExclusions.missingOutside || []).length;
-        
+
         const inclusionRate = totalObjects > 0 ? ((totalObjects - excludedObjects) / totalObjects * 100).toFixed(1) : 0;
-        
+
         summary.push({{
             Episode_ID: episode.id,
             Video_Source: episode.video_source,
@@ -1043,7 +1042,7 @@ function generateSummaryData() {{
             End_Time: episode.end_time
         }});
     }});
-    
+
     return summary;
 }}
 
@@ -1065,9 +1064,9 @@ document.addEventListener('DOMContentLoaded', function() {{
     console.log('Batch {batch_num} V2 loading...');
     console.log('Episodes loaded:', episodeData.length);
     console.log('Videos embedded:', Object.keys(videoData).length);
-    
+
     initializeExclusionData();
-    
+
     if (episodeData.length > 0) {{
         displayEpisode(0);
     }} else {{
@@ -1078,29 +1077,29 @@ document.addEventListener('DOMContentLoaded', function() {{
 // Display episode data
 function displayEpisode(index) {{
     if (index < 0 || index >= episodeData.length) return;
-    
+
     currentEpisodeIndex = index;
     const episode = episodeData[index];
-    
+
     console.log('Displaying episode:', episode.id);
-    
+
     // Update navigation
     document.getElementById('episodeInfo').textContent = `Episode ${{index + 1}} of ${{episodeData.length}}`;
     document.getElementById('prevBtn').disabled = index === 0;
     document.getElementById('nextBtn').disabled = index === episodeData.length - 1;
-    
+
     // Update video source label
     document.getElementById('videoSourceLabel').textContent = episode.video_source;
-    
+
     // Update video
     updateVideo(episode);
-    
+
     // Update video info
     updateVideoInfo(episode);
-    
+
     // Update objects
     updateObjects(episode);
-    
+
     // Update captions
     updateCaptions(episode);
 }}
@@ -1109,16 +1108,16 @@ function displayEpisode(index) {{
 function updateVideo(episode) {{
     const videoPlayer = document.getElementById('videoPlayer');
     const videoSource = document.getElementById('videoSource');
-    
+
     if (episode.clip_filename && videoData[episode.clip_filename]) {{
         const dataUrl = videoData[episode.clip_filename];
         videoSource.src = dataUrl;
         videoPlayer.load();
-        
+
         videoPlayer.onerror = function(e) {{
             console.error('Video loading error:', e);
         }};
-        
+
         videoPlayer.onloadedmetadata = function() {{
             videoPlayer.currentTime = 0;
         }};
@@ -1130,7 +1129,7 @@ function updateVideo(episode) {{
 // Update video information
 function updateVideoInfo(episode) {{
     document.getElementById('duration').textContent = parseFloat(episode.duration).toFixed(2);
-    document.getElementById('timeRange').textContent = 
+    document.getElementById('timeRange').textContent =
         `${{parseFloat(episode.start_time).toFixed(2)}}s - ${{parseFloat(episode.end_time).toFixed(2)}}s`;
     document.getElementById('fixationIds').textContent = episode.fixation_ids;
 }}
@@ -1140,21 +1139,21 @@ function createObjectCard(obj, type, episodeId, index) {{
     if (!obj || typeof obj !== 'object') {{
         return '<p>No data available</p>';
     }}
-    
+
     const identity = obj.object_identity || 'Unknown';
     const description = obj.detailed_caption || 'No description available';
     const exclusionState = getExclusionState(episodeId, type, index);
     const isExcluded = exclusionState.excluded;
-    
+
     const cardId = `card_${{episodeId}}_${{type}}_${{index}}`;
     const btnId = `btn_${{episodeId}}_${{type}}_${{index}}`;
-    
+
     return `
         <div class="object-card-container ${{isExcluded ? 'excluded-object' : ''}}" id="${{cardId}}">
             <div class="object-card-header">
                 <div class="object-name">${{identity}}</div>
-                <button class="exclude-btn ${{isExcluded ? 'exclude' : 'include'}}" 
-                        id="${{btnId}}" 
+                <button class="exclude-btn ${{isExcluded ? 'exclude' : 'include'}}"
+                        id="${{btnId}}"
                         onclick="toggleObjectExclusion(${{episodeId}}, '${{type}}', ${{index}})">
                     ${{isExcluded ? 'Exclude' : 'Include'}}
                 </button>
@@ -1169,16 +1168,16 @@ function createMissingObjectSection(episodeId, section, sectionTitle) {{
     const episodeExclusions = exclusionData.episodes[episodeId];
     const missingKey = `missing${{section.charAt(0).toUpperCase() + section.slice(1)}}`;
     const missingObjects = episodeExclusions?.[missingKey] || [];
-    
+
     return `
         <div class="missing-object-section">
             <h4>➕ If this data should be excluded, please describe what you see</h4>
             <div class="missing-object-inputs">
-                <input type="text" 
-                       id="missing-name-${{section}}-${{episodeId}}" 
+                <input type="text"
+                       id="missing-name-${{section}}-${{episodeId}}"
                        placeholder="Object name (e.g., knife, cutting board)">
-                <textarea 
-                    id="missing-caption-${{section}}-${{episodeId}}" 
+                <textarea
+                    id="missing-caption-${{section}}-${{episodeId}}"
                     placeholder="1~2 sentences Description of the object including attributes (color, material) and location nearby specific objects"></textarea>
                 <button class="add-missing-btn" onclick="addMissingObject(${{episodeId}}, '${{section}}')">
                     Add Object
@@ -1207,7 +1206,7 @@ function updateObjects(episode) {{
     const repObj = episode.representative_object;
     repObjContainer.innerHTML = createObjectCard(repObj, 'representative', episode.id, 0) +
                                  createMissingObjectSection(episode.id, 'representative', 'Green dot');
-    
+
     // Other objects in cropped area
     const croppedContainer = document.getElementById('otherObjectsCropped');
     const croppedObjects = episode.other_objects_in_cropped_area;
@@ -1220,7 +1219,7 @@ function updateObjects(episode) {{
             croppedContainer.appendChild(div);
         }});
     }}
-    
+
     // Objects outside FOV
     const outsideContainer = document.getElementById('objectsOutsideFov');
     const outsideObjects = episode.other_objects_outside_fov;
@@ -1239,7 +1238,7 @@ function updateObjects(episode) {{
 function updateCaptions(episode) {{
     const captionsContainer = document.getElementById('captions');
     const captions = episode.captions;
-    
+
     captionsContainer.innerHTML = '';
     if (Array.isArray(captions)) {{
         captions.forEach(caption => {{
@@ -1283,44 +1282,44 @@ window.addEventListener('beforeunload', function() {{
     </script>
 </body>
 </html>"""
-    
+
     # Write HTML file
-    output_filename = os.path.join(WORK_DIR, f"egtea_batch_{batch_num:02d}_v2.html")
+    output_filename = Path(WORK_DIR) / f"egtea_batch_{batch_num:02d}_v2.html"
     with open(output_filename, 'w', encoding='utf-8') as f:
         f.write(html_content)
-    
+
     # Also save JSON
-    json_path = os.path.join(WORK_DIR, f"episodes_batch_{batch_num:02d}_v2.json")
+    json_path = Path(WORK_DIR) / f"episodes_batch_{batch_num:02d}_v2.json"
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump(episodes, f, indent=2, ensure_ascii=False)
 
 def generate_batch_htmls(all_episodes):
     """Generate multiple HTML files, each containing a subset of episodes"""
-    
+
     total_episodes = len(all_episodes)
     num_htmls = math.ceil(total_episodes / EPISODES_PER_HTML)
-    
+
     print(f"\n🏗️  Generating {num_htmls} HTML files (V2 format, {EPISODES_PER_HTML} episodes per file)")
-    
+
     for html_idx in range(num_htmls):
         start_idx = html_idx * EPISODES_PER_HTML
         end_idx = min(start_idx + EPISODES_PER_HTML, total_episodes)
-        
+
         batch_episodes = all_episodes[start_idx:end_idx]
-        
+
         generate_single_html_v2(batch_episodes, html_idx + 1, num_htmls)
-        
+
         print(f"   ✓ Generated HTML batch {html_idx + 1}/{num_htmls} ({len(batch_episodes)} episodes)")
 
 def main():
     print("=" * 70)
     print("🚀 EGTEA Batch Video Processing & HTML Generation (V2 Format)")
     print("=" * 70)
-    
+
     # Load existing episodes_complete.json if it exists
-    complete_json_path = os.path.join(WORK_DIR, "episodes_complete.json")
-    
-    if os.path.exists(complete_json_path):
+    complete_json_path = Path(WORK_DIR) / "episodes_complete.json"
+
+    if Path(complete_json_path).exists():
         print("\n📋 Loading existing episodes data...")
         with open(complete_json_path, 'r', encoding='utf-8') as f:
             all_episodes = json.load(f)
@@ -1329,29 +1328,29 @@ def main():
         print("\n📋 Scanning video sources...")
         video_sources = get_all_video_sources()
         print(f"   Found {len(video_sources)} valid video sources")
-        
+
         if len(video_sources) == 0:
             print("❌ No valid video sources found!")
             return
-        
+
         print(f"\n🎬 Extracting clips from {len(video_sources)} videos...")
         all_episodes = []
         current_episode_id = 1
-        
+
         for idx, video_info in enumerate(video_sources, 1):
             print(f"\n[{idx}/{len(video_sources)}]", end=" ")
             episodes, current_episode_id = extract_clips_for_video(video_info, current_episode_id)
             all_episodes.extend(episodes)
-        
+
         print(f"\n✅ Extracted {len(all_episodes)} total episodes")
-        
+
         with open(complete_json_path, 'w', encoding='utf-8') as f:
             json.dump(all_episodes, f, indent=2, ensure_ascii=False)
         print(f"   Saved complete episodes list to: episodes_complete.json")
-    
+
     # Generate batch HTMLs (V2 format)
     generate_batch_htmls(all_episodes)
-    
+
     print("\n" + "=" * 70)
     print("✨ Processing Complete! (V2 Format)")
     print("=" * 70)

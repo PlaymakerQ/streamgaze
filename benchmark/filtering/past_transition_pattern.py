@@ -4,7 +4,7 @@ Past Transition Pattern Task Filtering
 Complete implementation with Qwen3VL validation
 """
 
-import os
+from pathlib import Path
 import base64
 import cv2
 import json
@@ -15,7 +15,7 @@ from .utils import parse_time_to_seconds, get_qwen_model, get_qwen_processor
 
 def extract_frames_from_video(video_path, start_sec, end_sec, num_frames=16):
     """Extract evenly spaced frames from video segment"""
-    if not os.path.exists(video_path):
+    if not Path(video_path).exists():
         return None
     
     try:

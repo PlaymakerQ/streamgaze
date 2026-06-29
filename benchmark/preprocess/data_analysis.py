@@ -2,7 +2,7 @@
 Data analysis utility functions
 """
 
-import os
+from pathlib import Path
 import pandas as pd
 from collections import Counter
 
@@ -37,13 +37,13 @@ def count_total_fixations(base_dir):
     total = 0
     video_fixations = {}
     
-    for video_name in os.listdir(base_dir):
-        if not os.path.isdir(os.path.join(base_dir, video_name)):
+    for video_name in [p.name for p in Path(base_dir).iterdir()]:
+        if not (Path(base_dir) / video_name).is_dir():
             continue
             
         try:
-            fixation_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_dataset.csv')
-            if os.path.exists(fixation_path):
+            fixation_path = Path(base_dir) / video_name / f'{video_name}_fixation_dataset.csv'
+            if Path(fixation_path).exists():
                 df = pd.read_csv(fixation_path)
                 count = len(df)
                 total += count

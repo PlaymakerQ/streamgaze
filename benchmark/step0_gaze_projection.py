@@ -20,7 +20,6 @@ python step0_gaze_projection.py \
 '''
 
 import argparse
-import os
 import sys
 import cv2
 import numpy as np
@@ -205,11 +204,11 @@ def process_batch(args):
         export_py_path = session['path']
         
         # Output paths
-        video_out = os.path.join(export_py_path, f"{session_name}_gaze.mp4")
-        csv_out = os.path.join(export_py_path, f"{session_name}_gaze_2d.csv")
+        video_out = Path(export_py_path) / f"{session_name}_gaze.mp4"
+        csv_out = Path(export_py_path) / f"{session_name}_gaze_2d.csv"
         
         # Check if already processed
-        if os.path.exists(csv_out) and not args.overwrite:
+        if Path(csv_out).exists() and not args.overwrite:
             skipped_count += 1
             print(f"[{i}/{len(sessions)}] {session_name}: [SKIP] Skipped (already exists)")
             continue
@@ -284,16 +283,16 @@ def process_single_session(args):
     """Process a single session"""
     base = args.folder_path
     # HoloAssist_gaze structure: Video_pitchshift.mp4 is directly under Export_py/
-    video_path = os.path.join(base, args.video_name)
-    video_timing_path = os.path.join(base, "Video", "VideoMp4Timing.txt")
-    pose_sync_path = os.path.join(base, "Video", "Pose_sync.txt")
-    intrinsics_path = os.path.join(base, "Video", "Intrinsics.txt")
-    eyes_sync_path = os.path.join(base, "Eyes", "Eyes_sync.txt")
+    video_path = Path(base) / args.video_name
+    video_timing_path = Path(base) / "Video" / "VideoMp4Timing.txt"
+    pose_sync_path = Path(base) / "Video" / "Pose_sync.txt"
+    intrinsics_path = Path(base) / "Video" / "Intrinsics.txt"
+    eyes_sync_path = Path(base) / "Eyes" / "Eyes_sync.txt"
 
     # Check file existence
     print(f"\n[INFO] Checking required files...")
     for p in [video_path, video_timing_path, pose_sync_path, intrinsics_path, eyes_sync_path]:
-        if not os.path.exists(p):
+        if not Path(p).exists():
             print(f"[ERROR] Missing: {p}")
             sys.exit(1)
     print(f"       [OK] All files found")

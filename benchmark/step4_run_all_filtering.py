@@ -16,7 +16,6 @@ Usage:
 
 import argparse
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 
@@ -103,7 +102,7 @@ def run_filtering(input_file, output_file, log_file, task_type=None):
     
     # Detect task type if not provided
     if task_type is None:
-        task_type = detect_task_type(os.path.basename(input_file))
+        task_type = detect_task_type(Path(input_file).name)
     
     if task_type is None:
         print(f"  [WARN]  Could not detect task type. Skipping.")

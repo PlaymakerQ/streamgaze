@@ -18,7 +18,7 @@ Features:
     - Automatically skips already processed videos
 """
 
-import os
+from pathlib import Path
 import ast
 import cv2
 import pandas as pd
@@ -473,10 +473,10 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
     # Check if required files exist
     # HoloAssist has different video path structure
     if dataset == 'holoassist':
-        video_path = f'{video_base_path}{video_name}/Export_py/Video_pitchshift.mp4'
+        video_path = Path(video_base_path) / video_name / 'Export_py' / 'Video_pitchshift.mp4'
     else:
-        video_path = f'{video_base_path}{video_name}.mp4'
-    data_dir = f'{base_data_path}{video_name}/'
+        video_path = Path(video_base_path) / f'{video_name}.mp4'
+    data_dir = Path(base_data_path) / video_name
     
     required_files = [
         f'{video_name}_fixation_dataset.csv'  # Step 1 output (NO object info)
@@ -485,7 +485,7 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
     # Check if all required files exist
     missing_files = []
     for file in required_files:
-        if not os.path.exists(os.path.join(data_dir, file)):
+        if not (Path(data_dir) / file).exists():
             missing_files.append(file)
     
     if missing_files:
@@ -493,7 +493,7 @@ def process_single_video(video_name, base_data_path, video_base_path, dataset='e
         return None
     
     # Load datasets
-    fixation_df = load_csv_safely(f'{data_dir}{video_name}_fixation_dataset.csv')
+    fixation_df = load_csv_safely(data_dir / f'{video_name}_fixation_dataset.csv')
     
     if fixation_df is None:
         print(f"Failed to load fixation dataset for {video_name}")
@@ -517,11 +517,11 @@ def process_video_complete(video_data, output_base_path):
     print(f"\nProcessing {video_name}...")
     
     # Check if output files already exist
-    output_data_dir = f'{output_base_path}{video_name}'
-    merged_output_path = f'{output_data_dir}/{video_name}_fixation_filtered.csv'  # Step 1.5 output
+    output_data_dir = Path(output_base_path) / video_name
+    merged_output_path = output_data_dir / f'{video_name}_fixation_filtered.csv'  # Step 1.5 output
     
     # Check if output file exists
-    if os.path.exists(merged_output_path):
+    if Path(merged_output_path).exists():
         print(f"[SKIP] Output file already exists for {video_name}")
         return {
             'video_name': video_name,
@@ -561,7 +561,7 @@ def process_video_complete(video_data, output_base_path):
     print(f"Duration filtering (>= {min_duration}s): {duration_before} -> {duration_after} fixations ({duration_after/duration_before*100:.1f}% kept)")
     
     # Step 4: Save filtered fixations (KEEP Step1 columns including action_caption)
-    os.makedirs(output_data_dir, exist_ok=True)
+    Path(output_data_dir).mkdir(parents=True, exist_ok=True)
     
     # Ensure we keep the original columns from Step1
     # segment_id, start_time_seconds, end_time_seconds, duration_seconds, center_x, center_y, action_caption
@@ -570,7 +570,7 @@ def process_video_complete(video_data, output_base_path):
     print(f"Columns saved: {filtered_df.columns.tolist()}")
     
     # Save filter statistics
-    filter_stats_path = f'{output_data_dir}/{video_name}_filter_stats.csv'
+    filter_stats_path = output_data_dir / f'{video_name}_filter_stats.csv'
     filter_stats.to_csv(filter_stats_path, index=False)
     print(f"Saved filter statistics to: {filter_stats_path}")
     
@@ -600,8 +600,8 @@ def run_dataset_batch(
     print("=" * 60)
 
     tasks = sorted([
-        task for task in os.listdir(base_data_path)
-        if os.path.isdir(os.path.join(base_data_path, task))
+        task for task in [p.name for p in Path(base_data_path).iterdir()]
+        if (Path(base_data_path) / task).is_dir()
     ])
 
     if task_filter is not None:
@@ -624,9 +624,9 @@ def run_dataset_batch(
 
     for video_name in progress_bar:
         progress_bar.set_description(f"Processing {video_name}")
-        output_check = f'{output_base_path}{video_name}/{video_name}_fixation_filtered.csv'
+        output_check = Path(output_base_path) / video_name / f'{video_name}_fixation_filtered.csv'
 
-        if os.path.exists(output_check):
+        if Path(output_check).exists():
             skipped += 1
             progress_bar.write(f"[SKIP] SKIPPING: {video_name} (already processed)")
             progress_bar.set_postfix({'Success': successful, 'Skipped': skipped, 'Failed': failed})
@@ -680,9 +680,9 @@ def process_egtea(reverse=False):
     """Process EGTEA dataset."""
     return run_dataset_batch(
         title='EGTEA Fixation Filtering and Merging',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/',
-        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egtea', 'videos') + '/',
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egtea', 'metadata') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata',
+        video_base_path=Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egtea' / 'videos',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'egtea' / 'metadata',
         dataset='egtea',
         reverse=reverse,
     )
@@ -692,9 +692,9 @@ def process_ego4d(reverse=False):
     """Process Ego4D dataset."""
     return run_dataset_batch(
         title='Ego4D Fixation Filtering',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/',
-        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'ego4d', 'v2', 'gaze_videos', 'v2', 'full_scale') + '/',
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'ego4d', 'metadata') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata',
+        video_base_path=Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'ego4d' / 'v2' / 'gaze_videos' / 'v2' / 'full_scale',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'ego4d' / 'metadata',
         dataset='ego4d',
         reverse=reverse,
     )
@@ -704,9 +704,9 @@ def process_egoexo(reverse=False):
     """Process EgoExoLearn dataset."""
     return run_dataset_batch(
         title='EgoExoLearn Fixation Filtering',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/',
-        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata',
+        video_base_path=Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata',
         dataset='egoexo',
         reverse=reverse,
     )
@@ -716,9 +716,9 @@ def process_egoexo_lab(reverse=False):
     """Process EgoExoLearn Lab dataset."""
     return run_dataset_batch(
         title='EgoExo Lab Fixation Filtering',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/',
-        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'lab') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab',
+        video_base_path=Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'lab',
         dataset='egoexo',
         reverse=reverse,
         task_label='lab video',
@@ -729,9 +729,9 @@ def process_egoexo_kitchen(reverse=False):
     """Process EgoExoLearn Kitchen dataset."""
     return run_dataset_batch(
         title='EgoExo Kitchen Fixation Filtering',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/',
-        video_base_path=os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'egoexolearn', 'full') + '/',
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'egoexo', 'metadata', 'kitchen_160') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160',
+        video_base_path=Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'egoexolearn' / 'full',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'egoexo' / 'metadata' / 'kitchen_160',
         dataset='egoexo',
         reverse=reverse,
         task_label='kitchen video',
@@ -740,11 +740,11 @@ def process_egoexo_kitchen(reverse=False):
 
 def process_holoassist(reverse=False):
     """Process HoloAssist dataset."""
-    video_base_path = os.path.join(PIPELINE_DIR, 'raw_gaze_dataset', 'holoassist', 'full') + '/'
-    annotation_file = os.path.join(video_base_path, 'data-annnotation-trainval-v1_1.json')
+    video_base_path = Path(PIPELINE_DIR) / 'raw_gaze_dataset' / 'holoassist' / 'full'
+    annotation_file = Path(video_base_path) / 'data-annnotation-trainval-v1_1.json'
     annotated_video_names = set()
 
-    if os.path.exists(annotation_file):
+    if Path(annotation_file).exists():
         print("Loading annotation data to filter sessions...")
         import json
         with open(annotation_file, 'r') as f:
@@ -754,9 +754,9 @@ def process_holoassist(reverse=False):
 
     return run_dataset_batch(
         title='HoloAssist Fixation Filtering',
-        base_data_path=os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/',
+        base_data_path=Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata',
         video_base_path=video_base_path,
-        output_base_path=os.path.join(PIPELINE_DIR, 'final_data', 'holoassist', 'metadata') + '/',
+        output_base_path=Path(PIPELINE_DIR) / 'final_data' / 'holoassist' / 'metadata',
         dataset='holoassist',
         reverse=reverse,
         task_filter=lambda task: task in annotated_video_names,

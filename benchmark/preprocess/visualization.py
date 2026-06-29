@@ -2,7 +2,6 @@
 Visualization functions for EGTEA gaze processing
 """
 
-import os
 import cv2
 import numpy as np
 import pandas as pd
@@ -200,7 +199,7 @@ def extract_and_save_gifs(dataset, frames, fps, save_dir, tag, gaze_df=None):
         tag: Tag for naming (e.g., 'fixation', 'confusion')
         gaze_df: Optional gaze dataframe for overlay visualization
     """
-    os.makedirs(save_dir, exist_ok=True)
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     total_frames = len(frames)
 
     # Color definitions for gaze visualization (BGR format)
@@ -244,7 +243,7 @@ def extract_and_save_gifs(dataset, frames, fps, save_dir, tag, gaze_df=None):
             action_info = action_info.strip('_')  # Remove leading/trailing underscores
             
             filename = f"{tag}_{idx}_dur{duration:.1f}s_pos({center_x:.2f},{center_y:.2f})_{action_info}.gif"
-            output_path = os.path.join(save_dir, filename)
+            output_path = Path(save_dir) / filename
 
             gif_frames = []
             height, width, _ = selected_frames[0].shape

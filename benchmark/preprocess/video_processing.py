@@ -3,14 +3,12 @@ Video processing functions for loading and handling video files
 """
 
 import cv2
-import os
-import glob
 import pandas as pd
 from pathlib import Path
 from .gaze_processing import parse_gtea_gaze, parse_ego4d_gaze, parse_egoexo_gaze, parse_holoassist_gaze, extract_fixation_segments, extract_confusion_segments
 from .action_mapping import map_actions_to_gaze, create_segment_dataset_with_actions, seconds_to_timestamp
 from .visualization import plot_gaze_segments, visualize_gaze_with_trail, visualize_gaze_green_dot_red_fov, extract_and_save_gifs
-
+from constants import Const
 
 '''
 Extract fixation/confusion from single video 
@@ -36,13 +34,13 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
     print(f"{'='*60}")
     
     # Create output directory
-    video_output_dir = os.path.join(output_dir, video_name)
-    os.makedirs(video_output_dir, exist_ok=True)
+    video_output_dir = Path(output_dir) / video_name
+    Path(video_output_dir).mkdir(parents=True, exist_ok=True)
     
     # In viz-only mode, load existing fixation data and skip to visualization
     if viz_only:
-        fixation_csv = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
-        if not os.path.exists(fixation_csv):
+        fixation_csv = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
+        if not Path(fixation_csv).exists():
             print(f"   ❌ Fixation data not found: {fixation_csv}")
             return
         
@@ -72,7 +70,7 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
         
         # Generate visualization only
         print("Generating visualization...")
-        viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+        viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
         visualize_gaze_green_dot_red_fov(frames, df, viz_path, fov_radius=100, fps=24)
         print(f"   ✅ Visualization saved: {viz_path}")
         return
@@ -88,13 +86,16 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
             if not ret:
                 break
             frames.append(frame)
+            if Const.TEST == True:
+                if len(frames) >= 10:
+                    break
         cap.release()
         
         print(f"   Total frames loaded: {len(frames)}")
         
         # 2. Parse gaze data
         print("2. Parsing gaze data...")
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"   ❌ Gaze file not found: {gaze_path}")
             return
         
@@ -162,13 +163,13 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
         print("7. Saving results...")
         
         # Save DataFrame
-        df_path = os.path.join(video_output_dir, f"{video_name}_total_metadata.csv")
+        df_path = Path(video_output_dir) / f"{video_name}_total_metadata.csv"
         df.to_csv(df_path, index=False)
         print(f"   ✅ Gaze dataframe saved: {df_path}")
         
         # Save fixation dataset
         if not fixation_dataset.empty:
-            fixation_path = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
+            fixation_path = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
             fixation_dataset.to_csv(fixation_path, index=False)
             print(f"   ✅ Fixation dataset saved: {fixation_path}")
         
@@ -197,7 +198,7 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
                     
                 # Create timeline plot
                 video_duration = df['time_seconds'].max() if len(df) > 0 else None
-                timeline_path = os.path.join(video_output_dir, f"{video_name}_timeline.png")
+                timeline_path = Path(video_output_dir) / f"{video_name}_timeline.png"
                 plot_gaze_segments(fixation_dataset, confusion_df_for_plot, video_duration, timeline_path)
             else:
                 print("   ⚠️ No fixation or confusion data to visualize")
@@ -208,7 +209,7 @@ def process_single_video(video_path, gaze_path, output_dir, action_data=None, sk
         if not skip_viz:
             if len(df) > 0 and len(frames) > 0:
                 print("9. Creating visualization video with green dot + red FOV...")
-                viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+                viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
                 visualize_gaze_green_dot_red_fov(frames, df, viz_path, fov_radius=100, fps=24)
             else:
                 print("9. Skipping visualization video (no valid gaze data)")
@@ -244,13 +245,13 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
     print(f"{'='*60}")
     
     # Create output directory
-    video_output_dir = os.path.join(output_dir, video_name)
-    os.makedirs(video_output_dir, exist_ok=True)
+    video_output_dir = Path(output_dir) / video_name
+    Path(video_output_dir).mkdir(parents=True, exist_ok=True)
     
     # In viz-only mode, load existing fixation data and skip to visualization
     if viz_only:
-        fixation_csv = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
-        if not os.path.exists(fixation_csv):
+        fixation_csv = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
+        if not Path(fixation_csv).exists():
             print(f"   ❌ Fixation data not found: {fixation_csv}")
             return
         
@@ -285,7 +286,7 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
         
         # Generate visualization only
         print("Generating visualization...")
-        viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+        viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
         visualize_gaze_green_dot_red_fov(frames, df, viz_path, fov_radius=100, fps=fps)
         print(f"   ✅ Visualization saved: {viz_path}")
         return
@@ -307,7 +308,7 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
         
         # 2. Parse gaze data (Ego4D format)
         print("2. Parsing Ego4D gaze data...")
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"   ❌ Gaze file not found: {gaze_path}")
             return
         
@@ -378,13 +379,13 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
         print("7. Saving results...")
         
         # Save DataFrame
-        df_path = os.path.join(video_output_dir, f"{video_name}_total_metadata.csv")
+        df_path = Path(video_output_dir) / f"{video_name}_total_metadata.csv"
         df.to_csv(df_path, index=False)
         print(f"   ✅ Gaze dataframe saved: {df_path}")
         
         # Save fixation dataset
         if not fixation_dataset.empty:
-            fixation_path = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
+            fixation_path = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
             fixation_dataset.to_csv(fixation_path, index=False)
             print(f"   ✅ Fixation dataset saved: {fixation_path}")
         
@@ -413,7 +414,7 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
                     
                 # Create timeline plot
                 video_duration = df['time_seconds'].max() if len(df) > 0 else None
-                timeline_path = os.path.join(video_output_dir, f"{video_name}_timeline.png")
+                timeline_path = Path(video_output_dir) / f"{video_name}_timeline.png"
                 plot_gaze_segments(fixation_dataset, confusion_df_for_plot, video_duration, timeline_path)
             else:
                 print("   ⚠️ No fixation or confusion data to visualize")
@@ -424,7 +425,7 @@ def process_single_video_ego4d(video_path, gaze_path, output_dir, action_data=No
         if not skip_viz:
             if len(df) > 0 and len(frames) > 0:
                 print("9. Creating visualization video with green dot + red FOV...")
-                viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+                viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
                 # Adjust FOV radius for Ego4D resolution
                 # EGTEA: 100 pixels / 640 = 15.6% of width
                 # Ego4D: 0.156 * 1088 ≈ 170 pixels
@@ -463,13 +464,13 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
     print(f"{'='*60}")
     
     # Create output directory
-    video_output_dir = os.path.join(output_dir, video_name)
-    os.makedirs(video_output_dir, exist_ok=True)
+    video_output_dir = Path(output_dir) / video_name
+    Path(video_output_dir).mkdir(parents=True, exist_ok=True)
     
     # In viz-only mode, load existing fixation data and skip to visualization
     if viz_only:
-        fixation_csv = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
-        if not os.path.exists(fixation_csv):
+        fixation_csv = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
+        if not Path(fixation_csv).exists():
             print(f"   ❌ Fixation data not found: {fixation_csv}")
             return
         
@@ -506,7 +507,7 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
         
         # Generate visualization only
         print("Generating visualization...")
-        viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+        viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
         visualize_gaze_green_dot_red_fov(frames, df, viz_path, fov_radius=100, fps=fps)
         print(f"   ✅ Visualization saved: {viz_path}")
         return
@@ -533,7 +534,7 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
         
         # 2. Parse gaze data (EgoExoLearn .npy format)
         print("2. Parsing EgoExoLearn gaze data...")
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"   ❌ Gaze file not found: {gaze_path}")
             return
         
@@ -607,13 +608,13 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
         print("7. Saving results...")
         
         # Save DataFrame
-        df_path = os.path.join(video_output_dir, f"{video_name}_total_metadata.csv")
+        df_path = Path(video_output_dir) / f"{video_name}_total_metadata.csv"
         df.to_csv(df_path, index=False)
         print(f"   ✅ Gaze dataframe saved: {df_path}")
         
         # Save fixation dataset
         if not fixation_dataset.empty:
-            fixation_path = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
+            fixation_path = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
             fixation_dataset.to_csv(fixation_path, index=False)
             print(f"   ✅ Fixation dataset saved: {fixation_path}")
         
@@ -642,7 +643,7 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
                     
                 # Create timeline plot
                 video_duration = df['time_seconds'].max() if len(df) > 0 else None
-                timeline_path = os.path.join(video_output_dir, f"{video_name}_timeline.png")
+                timeline_path = Path(video_output_dir) / f"{video_name}_timeline.png"
                 plot_gaze_segments(fixation_dataset, confusion_df_for_plot, video_duration, timeline_path)
             else:
                 print("   ⚠️ No fixation or confusion data to visualize")
@@ -653,7 +654,7 @@ def process_single_video_egoexo(video_path, gaze_path, output_dir, action_data=N
         if not skip_viz:
             if len(df) > 0 and len(frames) > 0:
                 print("9. Creating visualization video with green dot + red FOV...")
-                viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+                viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
                 # Calculate FOV radius dynamically based on resolution
                 # Target: ~15.6% of width (170 pixels for 1088px width baseline)
                 fov_radius = int(0.156 * frame_width)
@@ -697,13 +698,13 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
     print(f"{'='*60}")
     
     # Create output directory
-    video_output_dir = os.path.join(output_dir, video_name)
-    os.makedirs(video_output_dir, exist_ok=True)
+    video_output_dir = Path(output_dir) / video_name
+    Path(video_output_dir).mkdir(parents=True, exist_ok=True)
     
     # In viz-only mode, load existing fixation data and skip to visualization
     if viz_only:
-        fixation_csv = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
-        if not os.path.exists(fixation_csv):
+        fixation_csv = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
+        if not Path(fixation_csv).exists():
             print(f"   ❌ Fixation data not found: {fixation_csv}")
             return
         
@@ -740,7 +741,7 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
         
         # Generate visualization only
         print("Generating visualization...")
-        viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+        viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
         visualize_gaze_green_dot_red_fov(frames, df, viz_path, fov_radius=100, fps=fps)
         print(f"   ✅ Visualization saved: {viz_path}")
         return
@@ -767,7 +768,7 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
         
         # 2. Parse gaze data (HoloAssist CSV format)
         print("2. Parsing HoloAssist gaze data...")
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"   ❌ Gaze file not found: {gaze_path}")
             return
         
@@ -841,13 +842,13 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
         print("7. Saving results...")
         
         # Save DataFrame
-        df_path = os.path.join(video_output_dir, f"{video_name}_total_metadata.csv")
+        df_path = Path(video_output_dir) / f"{video_name}_total_metadata.csv"
         df.to_csv(df_path, index=False)
         print(f"   ✅ Gaze dataframe saved: {df_path}")
         
         # Save fixation dataset
         if not fixation_dataset.empty:
-            fixation_path = os.path.join(video_output_dir, f"{video_name}_fixation_dataset.csv")
+            fixation_path = Path(video_output_dir) / f"{video_name}_fixation_dataset.csv"
             fixation_dataset.to_csv(fixation_path, index=False)
             print(f"   ✅ Fixation dataset saved: {fixation_path}")
         
@@ -876,7 +877,7 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
                     
                 # Create timeline plot
                 video_duration = df['time_seconds'].max() if len(df) > 0 else None
-                timeline_path = os.path.join(video_output_dir, f"{video_name}_timeline.png")
+                timeline_path = Path(video_output_dir) / f"{video_name}_timeline.png"
                 plot_gaze_segments(fixation_dataset, confusion_df_for_plot, video_duration, timeline_path)
             else:
                 print("   ⚠️ No fixation or confusion data to visualize")
@@ -887,7 +888,7 @@ def process_single_video_holoassist(video_path, gaze_path, output_dir, action_da
         if not skip_viz:
             if len(df) > 0 and len(frames) > 0:
                 print("9. Creating visualization video with green dot + red FOV...")
-                viz_path = os.path.join(video_output_dir, f"{video_name}_gaze_visualization.mp4")
+                viz_path = Path(video_output_dir) / f"{video_name}_gaze_visualization.mp4"
                 # Calculate FOV radius dynamically based on resolution
                 # Target: ~15.6% of width (170 pixels for 1088px width baseline)
                 fov_radius = int(0.156 * frame_width)
@@ -910,17 +911,17 @@ def main():
     """Main processing function"""
     # Path configuration - Update these paths to your local setup
     base_dir = "path/to/EGTEA_gaze"  # Set your EGTEA gaze dataset path
-    video_dir = os.path.join(base_dir, "downloaded_videos")
-    gaze_dir = os.path.join(base_dir, "gaze_data", "gaze_data")
-    output_dir = os.path.join(base_dir, "processed_results_v2")
+    video_dir = Path(base_dir) / "downloaded_videos"
+    gaze_dir = Path(base_dir) / "gaze_data" / "gaze_data"
+    output_dir = Path(base_dir) / "processed_results_v2"
     
     # Create output directory
-    os.makedirs(output_dir, exist_ok=True)
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Load action data 
     action_data = None
-    action_file_path = os.path.join(base_dir, "raw_annotations/action_labels.csv")  # Modify to actual path
-    if os.path.exists(action_file_path):
+    action_file_path = Path(base_dir) / "raw_annotations/action_labels.csv"  # Modify to actual path
+    if Path(action_file_path).exists():
         print("Loading action data...")
         action_data = pd.read_csv(action_file_path, sep=';')
         print(f"Action data loaded: {action_data.shape}")
@@ -928,17 +929,17 @@ def main():
         print("Action data not found, proceeding without action information")
     
     # Find all video files
-    video_files = glob.glob(os.path.join(video_dir, "*.mp4"))
+    video_files = list(Path(video_dir).glob("*.mp4"))
     print(f"\nFound {len(video_files)} video files")
     
     # Process each video
     for i, video_path in enumerate(video_files, 1):
         video_name = Path(video_path).stem
-        gaze_path = os.path.join(gaze_dir, f"{video_name}.txt")
+        gaze_path = Path(gaze_dir) / f"{video_name}.txt"
         
         print(f"\n[{i}/{len(video_files)}] Processing {video_name}...")
         
-        if not os.path.exists(gaze_path):
+        if not Path(gaze_path).exists():
             print(f"❌ Gaze file not found for {video_name}, skipping...")
             continue
         

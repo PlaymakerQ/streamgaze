@@ -4,7 +4,7 @@ Future Remind Easy Task - Qwen3VL based GT Verification
 Verifies if user actually gazes at the object in 10-second clips using Qwen3VL
 """
 
-import os
+from pathlib import Path
 import base64
 import cv2
 import time
@@ -14,24 +14,24 @@ from .utils import parse_time_to_seconds, get_qwen_model, get_qwen_processor
 
 def get_gaze_visualization_path(original_video_path, base_dir=None):
     """Convert original video path to gaze_visualization video path"""
-    video_name = os.path.basename(original_video_path).replace('.mp4', '')
+    video_name = Path(original_video_path).name.replace('.mp4', '')
     
     if base_dir is None:
-        base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'final_data')
+        base_dir = Path(__file__).resolve().parent.parent.parent / 'final_data'
     
     # Try EGTEA path
-    egtea_path = os.path.join(base_dir, 'egtea', 'metadata', video_name, f'{video_name}_gaze_visualization.mp4')
-    if os.path.exists(egtea_path):
+    egtea_path = Path(base_dir) / 'egtea' / 'metadata' / video_name / f'{video_name}_gaze_visualization.mp4'
+    if Path(egtea_path).exists():
         return egtea_path
     
     # Try EgoExo path
-    egoexo_path = os.path.join(base_dir, 'egoexo', 'metadata', video_name, f'{video_name}_gaze_visualization.mp4')
-    if os.path.exists(egoexo_path):
+    egoexo_path = Path(base_dir) / 'egoexo' / 'metadata' / video_name / f'{video_name}_gaze_visualization.mp4'
+    if Path(egoexo_path).exists():
         return egoexo_path
     
     # Try HoloAssist path
-    holo_path = os.path.join(base_dir, 'holoassist', 'metadata', video_name, f'{video_name}_gaze_visualization.mp4')
-    if os.path.exists(holo_path):
+    holo_path = Path(base_dir) / 'holoassist' / 'metadata' / video_name / f'{video_name}_gaze_visualization.mp4'
+    if Path(holo_path).exists():
         return holo_path
     
     return original_video_path
@@ -39,7 +39,7 @@ def get_gaze_visualization_path(original_video_path, base_dir=None):
 
 def extract_frames_from_clip(video_path, start_sec, duration=10, num_frames=8):
     """Extract frames from a specific clip"""
-    if not os.path.exists(video_path):
+    if not Path(video_path).exists():
         return []
     
     cap = cv2.VideoCapture(video_path)
@@ -183,7 +183,7 @@ def filter_future_remind_easy(data, log_file=None):
         # Get gaze_visualization video path
         video_path = get_gaze_visualization_path(original_video_path)
         
-        if not os.path.exists(video_path):
+        if not Path(video_path).exists():
             if log_file:
                 log_file.write(f"[SKIP] Video not found: {video_path}\n")
             stats['skipped_tests'] += len(question.get('test_info', []))

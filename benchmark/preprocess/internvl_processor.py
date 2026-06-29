@@ -10,7 +10,7 @@ from typing import List, Dict, Tuple
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-import os
+from pathlib import Path
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import imageio
@@ -379,15 +379,15 @@ def save_frequency_analysis(counter, output_path, video_name):
 
 def count_total_fixations(base_dir):
     """Count total fixations (compatible with existing function)"""
-    tasks = sorted([d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))])
+    tasks = sorted([d for d in [p.name for p in Path(base_dir).iterdir()] if (Path(base_dir) / d).is_dir()])
     total_fixations = 0
     video_fixations = {}
     
     for video_name in tasks:
         try:
             import pandas as pd
-            csv_path = os.path.join(base_dir, video_name, f'{video_name}_fixation_dataset.csv')
-            if os.path.exists(csv_path):
+            csv_path = Path(base_dir) / video_name / f'{video_name}_fixation_dataset.csv'
+            if Path(csv_path).exists():
                 df = pd.read_csv(csv_path)
                 count = len(df)
                 video_fixations[video_name] = count
@@ -628,8 +628,8 @@ class InternVLProcessor_v2:
             
             # Save cropped video GIF if output directory is provided
             if output_dir and fixation_id is not None:
-                os.makedirs(output_dir, exist_ok=True)
-                cropped_gif_path = os.path.join(output_dir, f'cropped_video_fixation_{fixation_id}.gif')
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+                cropped_gif_path = Path(output_dir) / f'cropped_video_fixation_{fixation_id}.gif'
                 self.save_cropped_video_gif(cropped_frames, cropped_gif_path, gaze_x, gaze_y, fps=2)
             
             # Visualize cropped frames with gaze point
@@ -665,7 +665,7 @@ class InternVLProcessor_v2:
                 plt.tight_layout()
                 
                 if save_images:
-                    os.makedirs('gaze_analysis_images', exist_ok=True)
+                    Path('gaze_analysis_images').mkdir(parents=True, exist_ok=True)
                     plt.savefig(f'gaze_analysis_images/cropped_fov_{start_time:.1f}s-{end_time:.1f}s.png', dpi=150, bbox_inches='tight')
                     print(f"Saved cropped FOV images to: gaze_analysis_images/cropped_fov_{start_time:.1f}s-{end_time:.1f}s.png")
                 
@@ -813,8 +813,8 @@ Return only valid JSON. Be concise and direct.
             
             # Save masked video GIF if output directory is provided
             if output_dir and fixation_id is not None:
-                os.makedirs(output_dir, exist_ok=True)
-                masked_gif_path = os.path.join(output_dir, f'masked_video_fixation_{fixation_id}.gif')
+                Path(output_dir).mkdir(parents=True, exist_ok=True)
+                masked_gif_path = Path(output_dir) / f'masked_video_fixation_{fixation_id}.gif'
                 self.save_masked_video_gif(masked_frames, masked_gif_path, fps=2)
             
             # Get pixel values for InternVL
@@ -946,7 +946,7 @@ Focus on objects/people outside the masked center area. Return only valid JSON. 
                 plt.tight_layout()
                 
                 if save_images:
-                    os.makedirs('gaze_analysis_images', exist_ok=True)
+                    Path('gaze_analysis_images').mkdir(parents=True, exist_ok=True)
                     plt.savefig(f'gaze_analysis_images/original_with_gaze_{start_time:.1f}s-{end_time:.1f}s.png', dpi=150, bbox_inches='tight')
                     print(f"Saved original frames with gaze to: gaze_analysis_images/original_with_gaze_{start_time:.1f}s-{end_time:.1f}s.png")
                 
