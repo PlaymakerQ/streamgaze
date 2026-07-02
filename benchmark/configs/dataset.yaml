@@ -1,0 +1,17 @@
+egtea:
+  default_fps: 30
+
+ego4d:
+  default_fps: 30
+
+egoexo:
+  default_fps: 30
+
+egoexo-lab:
+  default_fps: 30
+
+kitchen:
+  default_fps: 30
+
+holoassist:
+  default_fps: 24.46
